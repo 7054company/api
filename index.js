@@ -104,6 +104,8 @@ router.delete('/agents/:id', (req, res) => {
   res.status(204).send();
 });
 
+import https from 'https';
+
 router.get('/log/agent/:uid', (req, res) => {
   const { uid } = req.params;
   const url = `https://hello-world-virid-chi.vercel.app/query/raw/${uid}`;
@@ -118,14 +120,38 @@ router.get('/log/agent/:uid', (req, res) => {
 
     // The whole response has been received.
     response.on('end', () => {
-      // Directly send the raw response data as is
-      res.send(data);  // This will send the raw data without parsing
+      try {
+        // Split the raw response by new lines and map each log entry to the formatted output
+        const logEntries = data.split('\n').map(log => {
+          // Match timestamp pattern in the format [YYYY-MM-DDTHH:MM:SSZ]
+          const timestampMatch = log.match(/\[(.*?)\]/);
+          if (timestampMatch) {
+            const timestamp = timestampMatch[1];
+            const logMessage = log.replace(timestampMatch[0], '').trim(); // Get log message after timestamp
+            return { timestamp, message: logMessage };
+          }
+          return null; // In case no timestamp found, ignore that log entry
+        }).filter(entry => entry !== null); // Remove any null entries
+
+        // Create the final formatted response
+        const formattedResponse = logEntries.map(entry => {
+          return `[${entry.timestamp}] ${entry.message}`;
+        }).join('\n');
+
+        // Send the formatted log data back as the response
+        res.send(formattedResponse);
+
+      } catch (error) {
+        console.error('Error processing response:', error.message);
+        res.status(500).json({ message: 'Error processing response', error: error.message });
+      }
     });
   }).on('error', (error) => {
     console.error('Error fetching data:', error.message);
     res.status(500).json({ message: 'Error fetching data', error: error.message });
   });
 });
+
 
 
 // Health check endpoint
