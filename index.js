@@ -1,6 +1,5 @@
-import express from 'express'; 
+import express from 'express';
 import cors from 'cors';
-import https from 'https';  // Use https module
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -83,13 +82,13 @@ router.put('/agents/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ message: 'Agent not found' });
   }
-
+  
   agents[index] = {
     ...agents[index],
     ...req.body,
     lastActive: 'Just now',
   };
-
+  
   res.json(agents[index]);
 });
 
@@ -99,38 +98,9 @@ router.delete('/agents/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ message: 'Agent not found' });
   }
-
+  
   agents = agents.filter(a => a.id !== req.params.id);
   res.status(204).send();
-});
-
-// Query raw data by UID from external URL
-router.get('/log/agent/:uid', (req, res) => {
-  const { uid } = req.params;
-  const url = `https://hello-world-virid-chi.vercel.app/query/raw/${uid}`;
-
-  https.get(url, (response) => {
-    let data = '';
-
-    // A chunk of data has been received.
-    response.on('data', (chunk) => {
-      data += chunk;
-    });
-
-    // The whole response has been received.
-    response.on('end', () => {
-      try {
-        const parsedData = JSON.parse(data); // Parse the JSON response
-        res.json(parsedData);  // Send the parsed data as a response
-      } catch (error) {
-        console.error('Error parsing response:', error.message);
-        res.status(500).json({ message: 'Error parsing response', error: error.message });
-      }
-    });
-  }).on('error', (error) => {
-    console.error('Error fetching data:', error.message);
-    res.status(500).json({ message: 'Error fetching data', error: error.message });
-  });
 });
 
 // Health check endpoint
