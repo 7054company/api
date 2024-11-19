@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1",
+    "name": "Data Analyzer",
+    "type": "Analyzer",
+    "status": "active",
+    "lastActive": "2 minutes ago",
+    "description": "Analyzes complex data sets and generates insights",
+    "capabilities": [
+      "Data Processing",
+      "Pattern Recognition",
+      "Report Generation"
+    ],
+    "apiKey": "f8a4b7f6-d4d2-4f9e-a914-3c8b25dfaf7e",
+    "created": "2024-11-19T10:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "name": "Task Assistant",
+    "type": "Assistant",
+    "status": "active",
+    "lastActive": "1 hour ago",
+    "description": "Helps with daily tasks and scheduling",
+    "capabilities": [
+      "Task Management",
+      "Calendar Integration",
+      "Reminders"
+    ],
+    "apiKey": "d2e8395a-f2c5-468e-99f9-5bc427a7bb7d",
+    "created": "2024-11-19T09:00:00.000Z"
+  },
+  {
+    "id": "3",
+    "name": "Performance Tracker",
+    "type": "Tracker",
+    "status": "active",
+    "lastActive": "Just now",
+    "description": "Monitors and tracks system performance metrics",
+    "capabilities": [
+      "Metric Collection",
+      "Performance Analysis",
+      "Alert Generation"
+    ],
+    "apiKey": "a25f36ab-733f-4729-bcdc-c68fd6cb5c8e",
+    "created": "2024-11-19T11:00:00.000Z"
+  }
+]
