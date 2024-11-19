@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import axios from 'axios'; 
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -102,20 +101,6 @@ router.delete('/agents/:id', (req, res) => {
   
   agents = agents.filter(a => a.id !== req.params.id);
   res.status(204).send();
-});
-
-// Query raw data by UID
-router.get('/log/agent/:uid', async (req, res) => {
-  const { uid } = req.params;
-  const url = `https://hello-world-virid-chi.vercel.app/query/raw/${uid}`;
-
-  try {
-    const response = await axios.get(url);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error fetching data:', error.message);
-    res.status(500).json({ message: 'Error fetching data', error: error.message });
-  }
 });
 
 // Health check endpoint
