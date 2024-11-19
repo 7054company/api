@@ -104,7 +104,6 @@ router.delete('/agents/:id', (req, res) => {
   res.status(204).send();
 });
 
-// Query raw data by UID from external URL
 router.get('/log/agent/:uid', (req, res) => {
   const { uid } = req.params;
   const url = `https://hello-world-virid-chi.vercel.app/query/raw/${uid}`;
@@ -119,19 +118,15 @@ router.get('/log/agent/:uid', (req, res) => {
 
     // The whole response has been received.
     response.on('end', () => {
-      try {
-        const parsedData = JSON.parse(data); // Parse the JSON response
-        res.json(parsedData);  // Send the parsed data as a response
-      } catch (error) {
-        console.error('Error parsing response:', error.message);
-        res.status(500).json({ message: 'Error parsing response', error: error.message });
-      }
+      // Directly send the raw response data as is
+      res.send(data);  // This will send the raw data without parsing
     });
   }).on('error', (error) => {
     console.error('Error fetching data:', error.message);
     res.status(500).json({ message: 'Error fetching data', error: error.message });
   });
 });
+
 
 // Health check endpoint
 router.get('/health', (req, res) => {
