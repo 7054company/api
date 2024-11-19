@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "build": "npm install && npm install axios"
+    "build": "npm install "
   },
   "keywords": ["Node.js", "Express", "API", "Hello World"],
   "author": "Your Name",
