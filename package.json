@@ -4,15 +4,14 @@
   "description": "A simple Node.js and Express API example.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",  // Added nodemon for development environment
+    "start": "node index.js", 
     "build": "npm install && node index.js"
   },
   "keywords": ["Node.js", "Express", "API", "Hello World"],
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.4.0",        // Update axios to the latest stable version
+    "axios": "latest",       
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.1",
@@ -20,6 +19,6 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20"      // Added nodemon as a devDependency for auto-reloading
+    "nodemon": "^2.0.20"
   }
 }
