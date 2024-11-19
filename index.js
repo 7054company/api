@@ -104,7 +104,7 @@ router.delete('/agents/:id', (req, res) => {
   res.status(204).send();
 });
 
-import https from 'https';
+
 
 router.get('/log/agent/:uid', (req, res) => {
   const { uid } = req.params;
