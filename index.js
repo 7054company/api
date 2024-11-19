@@ -118,6 +118,7 @@ router.get('/log/agent/:uid', async (req, res) => {
   }
 });
 
+
 // Health check endpoint
 router.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
