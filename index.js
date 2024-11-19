@@ -106,6 +106,7 @@ router.delete('/agents/:id', (req, res) => {
 
 
 
+// Query raw data by UID and format the response
 router.get('/log/agent/:uid', (req, res) => {
   const { uid } = req.params;
   const url = `https://hello-world-virid-chi.vercel.app/query/raw/${uid}`;
@@ -121,29 +122,27 @@ router.get('/log/agent/:uid', (req, res) => {
     // The whole response has been received.
     response.on('end', () => {
       try {
-        // Split the raw response by new lines and map each log entry to the formatted output
-        const logEntries = data.split('\n').map(log => {
-          // Match timestamp pattern in the format [YYYY-MM-DDTHH:MM:SSZ]
-          const timestampMatch = log.match(/\[(.*?)\]/);
-          if (timestampMatch) {
-            const timestamp = timestampMatch[1];
-            const logMessage = log.replace(timestampMatch[0], '').trim(); // Get log message after timestamp
-            return { timestamp, message: logMessage };
-          }
-          return null; // In case no timestamp found, ignore that log entry
-        }).filter(entry => entry !== null); // Remove any null entries
+        // Raw logs are like: [timestamp] message [timestamp] message...
+        const logEntries = [];
+        const logPattern = /\[([^\]]+)\]\s([^\[]+)/g; // Regex to match [timestamp] log message
 
-        // Create the final formatted response
-        const formattedResponse = logEntries.map(entry => {
-          return `[${entry.timestamp}] ${entry.message}`;
-        }).join('\n');
+        let match;
+        // Use regex to extract the timestamp and message pairs
+        while ((match = logPattern.exec(data)) !== null) {
+          logEntries.push({
+            timestamp: match[1],  // The timestamp part
+            message: match[2].trim(), // The log message part
+          });
+        }
 
-        // Send the formatted log data back as the response
-        res.send(formattedResponse);
+        // Now send the structured logs as a JSON response
+        // We will format it as a string like: [timestamp] message
+        const formattedLogs = logEntries.map(entry => `[${entry.timestamp}] ${entry.message}`).join('\n');
 
+        res.send(formattedLogs); // Send it as plain text, formatted as desired
       } catch (error) {
-        console.error('Error processing response:', error.message);
-        res.status(500).json({ message: 'Error processing response', error: error.message });
+        console.error('Error processing log data:', error.message);
+        res.status(500).json({ message: 'Error processing log data', error: error.message });
       }
     });
   }).on('error', (error) => {
@@ -151,6 +150,7 @@ router.get('/log/agent/:uid', (req, res) => {
     res.status(500).json({ message: 'Error fetching data', error: error.message });
   });
 });
+
 
 
 // Health check endpoint
