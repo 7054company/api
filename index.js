@@ -1,5 +1,6 @@
-import express from 'express';
+import express from 'express'; 
 import cors from 'cors';
+import axios from 'axios'; // Add axios for HTTP requests
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -82,13 +83,13 @@ router.put('/agents/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ message: 'Agent not found' });
   }
-  
+
   agents[index] = {
     ...agents[index],
     ...req.body,
     lastActive: 'Just now',
   };
-  
+
   res.json(agents[index]);
 });
 
@@ -98,9 +99,23 @@ router.delete('/agents/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ message: 'Agent not found' });
   }
-  
+
   agents = agents.filter(a => a.id !== req.params.id);
   res.status(204).send();
+});
+
+// Query raw data by UID from external URL
+router.get('/log/agent/:uid', async (req, res) => {
+  const { uid } = req.params;
+  const url = `https://hello-world-virid-chi.vercel.app/query/raw/${uid}`;
+
+  try {
+    const response = await axios.get(url);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error fetching data:', error.message);
+    res.status(500).json({ message: 'Error fetching data', error: error.message });
+  }
 });
 
 // Health check endpoint
