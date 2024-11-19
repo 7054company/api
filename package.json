@@ -1,22 +1,25 @@
 {
   "name": "hello-world",
   "version": "1.0.0",
-  "description": "Node.js Express Hello World example",
+  "description": "A simple Node.js and Express API example.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
+    "dev": "nodemon index.js",  // Added nodemon for development environment
     "build": "npm install && node index.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["Node.js", "Express", "API", "Hello World"],
+  "author": "Your Name",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.4.0",        // Update axios to the latest stable version
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
     "express": "^4.18.1",
     "moment": "^2.29.1",
-    "dotenv": "^16.0.3",
-    "cors": "^2.8.5",
-    "axios": "^1.5.0",
     "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"      // Added nodemon as a devDependency for auto-reloading
   }
 }
