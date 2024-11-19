@@ -16,6 +16,6 @@
     "moment": "^2.29.1",
     "dotenv": "^16.0.3",
     "cors": "^2.8.5",
-    "axios": "^1.5.0"  // Added axios dependency here
+    "axios": "^1.5.0"
   }
 }
