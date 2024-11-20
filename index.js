@@ -106,7 +106,6 @@ router.delete('/agents/:id', (req, res) => {
 
 
 
-// Query raw data by UID and format the response
 router.get('/log/agent/:uid', (req, res) => {
   const { uid } = req.params;
   const url = `https://hello-world-virid-chi.vercel.app/query/raw/${uid}`;
@@ -114,32 +113,29 @@ router.get('/log/agent/:uid', (req, res) => {
   https.get(url, (response) => {
     let data = '';
 
-    // A chunk of data has been received.
+    // Collect data chunks
     response.on('data', (chunk) => {
       data += chunk;
     });
 
-    // The whole response has been received.
+    // Process the complete response
     response.on('end', () => {
       try {
-        // Raw logs are like: [timestamp] message [timestamp] message...
         const logEntries = [];
-        const logPattern = /\[([^\]]+)\]\s([^\[]+)/g; // Regex to match [timestamp] log message
+        const logPattern = /\[([^\]]+)\]\s([^\[]+)/g; // Match [timestamp] message
 
         let match;
-        // Use regex to extract the timestamp and message pairs
         while ((match = logPattern.exec(data)) !== null) {
-          logEntries.push({
-            timestamp: match[1],  // The timestamp part
-            message: match[2].trim(), // The log message part
-          });
+          logEntries.push(`[${match[1]}] ${match[2].trim()}`);
         }
 
-        // Now send the structured logs as a JSON response
-        // We will format it as a string like: [timestamp] message
-        const formattedLogs = logEntries.map(entry => `[${entry.timestamp}] ${entry.message}`).join('\n');
+        if (logEntries.length === 0) {
+          return res.status(404).send('No logs found for the provided UID.');
+        }
 
-        res.send(formattedLogs); // Send it as plain text, formatted as desired
+        // Join logs with newlines
+        const formattedLogs = logEntries.join('\n');
+        res.type('text/plain').send(formattedLogs); // Respond with plain text
       } catch (error) {
         console.error('Error processing log data:', error.message);
         res.status(500).json({ message: 'Error processing log data', error: error.message });
@@ -150,6 +146,7 @@ router.get('/log/agent/:uid', (req, res) => {
     res.status(500).json({ message: 'Error fetching data', error: error.message });
   });
 });
+
 
 
 
