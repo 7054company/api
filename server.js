@@ -12,7 +12,7 @@ const __dirname = dirname(__filename);
 
 dotenv.config();
 
-const app = express();
+
 
 // Middleware
 app.use(cors());
