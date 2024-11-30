@@ -1,10 +1,82 @@
-import { Router } from 'express';
+import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { getUsers, saveUsers } from '../utils/storage.js';
-import { getClientIp, updateIpHistory } from '../utils/ip.js';
+import { promises as fs } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const router = Router();
+const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const DATA_FILE = join(__dirname, 'data', 'users.json');
+
+// File handling utilities
+const initDataFile = async () => {
+  try {
+    await fs.access(DATA_FILE);
+  } catch {
+    const dataDir = join(__dirname, 'data');
+    try {
+      await fs.access(dataDir);
+    } catch {
+      await fs.mkdir(dataDir, { recursive: true });
+    }
+    await fs.writeFile(DATA_FILE, JSON.stringify({ users: [] }));
+  }
+};
+
+const getUsers = async () => {
+  await initDataFile();
+  const data = await fs.readFile(DATA_FILE, 'utf8');
+  return JSON.parse(data).users;
+};
+
+const saveUsers = async (users) => {
+  await fs.writeFile(DATA_FILE, JSON.stringify({ users }, null, 2));
+};
+
+// IP handling utilities
+const getClientIp = (req) => {
+  return req.ip || 
+         req.headers['x-forwarded-for'] || 
+         req.connection.remoteAddress || 
+         'unknown';
+};
+
+const updateIpHistory = (user, ip) => {
+  if (!user.ipHistory) {
+    user.ipHistory = [];
+  }
+  
+  user.ipHistory = user.ipHistory.filter(entry => entry.ip !== ip);
+  
+  user.ipHistory.unshift({
+    ip,
+    timestamp: new Date().toISOString()
+  });
+  
+  user.ipHistory = user.ipHistory.slice(0, 5);
+  
+  return user;
+};
+
+// Authentication middleware
+export const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Authentication token required' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 // Register route
 router.post('/register', async (req, res) => {
