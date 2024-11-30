@@ -6,6 +6,7 @@ import { dirname, join } from 'path';
 import authRoutes from './auth.js';
 import apiRoutes from './api.js';
 import agentRoutes from './routes/agents.js';
+import logsRoutes from './routes/logs.js';
 import healthRoutes from './routes/health.js';
 
 // ES Module fix for __dirname
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/agents', agentRoutes);
+app.use('/api/logs', logsRoutes);
 app.use('/api/health', healthRoutes);
 
 // Basic route
