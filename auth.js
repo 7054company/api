@@ -1,49 +1,11 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { promises as fs } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
 const router = express.Router();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const DATA_FILE = join(__dirname, 'data', 'users.json');
 
 // In-memory database
-let usersCache = new Map();
-
-// File handling utilities
-const initDataFile = async () => {
-  try {
-    await fs.access(DATA_FILE);
-    // Load initial data into memory
-    const data = await fs.readFile(DATA_FILE, 'utf8');
-    const users = JSON.parse(data).users;
-    usersCache.clear();
-    users.forEach(user => usersCache.set(user.id, user));
-  } catch {
-    const dataDir = join(__dirname, 'data');
-    try {
-      await fs.access(dataDir);
-    } catch {
-      await fs.mkdir(dataDir, { recursive: true });
-    }
-    await fs.writeFile(DATA_FILE, JSON.stringify({ users: [] }));
-  }
-};
-
-const getUsers = async () => {
-  await initDataFile();
-  return Array.from(usersCache.values());
-};
-
-const saveUsers = async (users) => {
-  // Update both cache and file
-  usersCache.clear();
-  users.forEach(user => usersCache.set(user.id, user));
-  await fs.writeFile(DATA_FILE, JSON.stringify({ users }, null, 2));
-};
+const users = new Map();
 
 // IP handling utilities
 const getClientIp = (req) => {
@@ -98,16 +60,17 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // Check cache first
-    const existingUser = Array.from(usersCache.values()).find(user => user.email === email);
+    // Check if user exists
+    const existingUser = Array.from(users.values()).find(user => user.email === email);
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const userId = Date.now().toString();
 
     const newUser = {
-      id: Date.now().toString(),
+      id: userId,
       username,
       email,
       password: hashedPassword,
@@ -118,11 +81,7 @@ router.post('/register', async (req, res) => {
       }]
     };
 
-    // Update both cache and file
-    usersCache.set(newUser.id, newUser);
-    const users = await getUsers();
-    users.push(newUser);
-    await saveUsers(users);
+    users.set(userId, newUser);
 
     const token = jwt.sign(
       { id: newUser.id, email: newUser.email },
@@ -156,8 +115,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Check cache first
-    const user = Array.from(usersCache.values()).find(u => u.email === email);
+    const user = Array.from(users.values()).find(u => u.email === email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -167,15 +125,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Update IP history
     const updatedUser = updateIpHistory(user, clientIp);
-    usersCache.set(user.id, updatedUser);
-
-    // Update file storage
-    const users = await getUsers();
-    const userIndex = users.findIndex(u => u.id === user.id);
-    users[userIndex] = updatedUser;
-    await saveUsers(users);
+    users.set(user.id, updatedUser);
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
@@ -210,9 +161,8 @@ router.get('/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    
-    // Check cache first
-    const user = usersCache.get(decoded.id);
+    const user = users.get(decoded.id);
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -231,7 +181,25 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// Initialize the cache when the module loads
-initDataFile().catch(console.error);
+// Add some test users for development
+const addTestUsers = async () => {
+  if (users.size === 0) {
+    const testUser = {
+      id: '1',
+      username: 'testuser',
+      email: 'test@example.com',
+      password: await bcrypt.hash('password123', 10),
+      createdAt: new Date().toISOString(),
+      ipHistory: [{
+        ip: 'localhost',
+        timestamp: new Date().toISOString()
+      }]
+    };
+    users.set(testUser.id, testUser);
+  }
+};
+
+// Initialize test data
+addTestUsers().catch(console.error);
 
 export default router;
