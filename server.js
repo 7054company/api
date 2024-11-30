@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import authRoutes from './auth.js';
 import apiRoutes from './api.js';
+import agentRoutes from './routes/agents.js';
+import healthRoutes from './routes/health.js';
 
 // ES Module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -12,7 +14,7 @@ const __dirname = dirname(__filename);
 
 dotenv.config();
 
-
+const app = express();
 
 // Middleware
 app.use(cors());
@@ -21,6 +23,8 @@ app.use(express.json());
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
+app.use('/api/agents', agentRoutes);
+app.use('/api/health', healthRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
