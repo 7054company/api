@@ -10,10 +10,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const DATA_FILE = join(__dirname, 'data', 'users.json');
 
+// In-memory database
+let usersCache = new Map();
+
 // File handling utilities
 const initDataFile = async () => {
   try {
     await fs.access(DATA_FILE);
+    // Load initial data into memory
+    const data = await fs.readFile(DATA_FILE, 'utf8');
+    const users = JSON.parse(data).users;
+    usersCache.clear();
+    users.forEach(user => usersCache.set(user.id, user));
   } catch {
     const dataDir = join(__dirname, 'data');
     try {
@@ -27,11 +35,13 @@ const initDataFile = async () => {
 
 const getUsers = async () => {
   await initDataFile();
-  const data = await fs.readFile(DATA_FILE, 'utf8');
-  return JSON.parse(data).users;
+  return Array.from(usersCache.values());
 };
 
 const saveUsers = async (users) => {
+  // Update both cache and file
+  usersCache.clear();
+  users.forEach(user => usersCache.set(user.id, user));
   await fs.writeFile(DATA_FILE, JSON.stringify({ users }, null, 2));
 };
 
@@ -88,9 +98,9 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    const users = await getUsers();
-
-    if (users.some(user => user.email === email)) {
+    // Check cache first
+    const existingUser = Array.from(usersCache.values()).find(user => user.email === email);
+    if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
@@ -108,6 +118,9 @@ router.post('/register', async (req, res) => {
       }]
     };
 
+    // Update both cache and file
+    usersCache.set(newUser.id, newUser);
+    const users = await getUsers();
     users.push(newUser);
     await saveUsers(users);
 
@@ -143,21 +156,25 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const users = await getUsers();
-    const userIndex = users.findIndex(u => u.email === email);
-
-    if (userIndex === -1) {
+    // Check cache first
+    const user = Array.from(usersCache.values()).find(u => u.email === email);
+    if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const user = users[userIndex];
     const validPassword = await bcrypt.compare(password, user.password);
-
     if (!validPassword) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    users[userIndex] = updateIpHistory(user, clientIp);
+    // Update IP history
+    const updatedUser = updateIpHistory(user, clientIp);
+    usersCache.set(user.id, updatedUser);
+
+    // Update file storage
+    const users = await getUsers();
+    const userIndex = users.findIndex(u => u.id === user.id);
+    users[userIndex] = updatedUser;
     await saveUsers(users);
 
     const token = jwt.sign(
@@ -193,9 +210,9 @@ router.get('/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const users = await getUsers();
-    const user = users.find(u => u.id === decoded.id);
-
+    
+    // Check cache first
+    const user = usersCache.get(decoded.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -213,5 +230,8 @@ router.get('/me', async (req, res) => {
     res.status(500).json({ message: 'Error fetching user data' });
   }
 });
+
+// Initialize the cache when the module loads
+initDataFile().catch(console.error);
 
 export default router;
