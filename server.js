@@ -25,7 +25,7 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/agents', agentRoutes);
-app.use('/api/logs', logsRoutes);
+app.use('/api/log', logsRoutes);
 app.use('/api/health', healthRoutes);
 
 // Basic route
