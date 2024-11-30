@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import authRoutes from './auth.js';
-import apiRoutes from './api.js';
+import apiRoutes from './routes/api.js';
 import agentRoutes from './routes/agents.js';
 import logsRoutes from './routes/logs.js';
 import healthRoutes from './routes/health.js';
