@@ -4,10 +4,11 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import authRoutes from './auth.js';
-import apiRoutes from './api.js';
+import apiRoutes from './routes/api.js';
 import agentRoutes from './routes/agents.js';
 import logsRoutes from './routes/logs.js';
 import healthRoutes from './routes/health.js';
+import aiRouter from './routes/ai/index.js';
 
 // ES Module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -27,6 +28,7 @@ app.use('/api', apiRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/log', logsRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/ai', aiRouter);
 
 // Basic route
 app.get('/', (req, res) => {
