@@ -1,11 +1,9 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { UserModel } from './models/user.model.js';
 
 const router = express.Router();
-
-// In-memory database
-const users = new Map();
 
 // IP handling utilities
 const getClientIp = (req) => {
@@ -13,23 +11,6 @@ const getClientIp = (req) => {
          req.headers['x-forwarded-for'] || 
          req.connection.remoteAddress || 
          'unknown';
-};
-
-const updateIpHistory = (user, ip) => {
-  if (!user.ipHistory) {
-    user.ipHistory = [];
-  }
-  
-  user.ipHistory = user.ipHistory.filter(entry => entry.ip !== ip);
-  
-  user.ipHistory.unshift({
-    ip,
-    timestamp: new Date().toISOString()
-  });
-  
-  user.ipHistory = user.ipHistory.slice(0, 5);
-  
-  return user;
 };
 
 // Authentication middleware
@@ -61,30 +42,17 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user exists
-    const existingUser = Array.from(users.values()).find(user => user.email === email);
+    const existingUser = await UserModel.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = Date.now().toString();
-
-    const newUser = {
-      id: userId,
-      username,
-      email,
-      password: hashedPassword,
-      createdAt: new Date().toISOString(),
-      ipHistory: [{
-        ip: clientIp,
-        timestamp: new Date().toISOString()
-      }]
-    };
-
-    users.set(userId, newUser);
+    // Create user
+    const userId = await UserModel.create({ username, email, password });
+    await UserModel.addLoginHistory(userId, clientIp);
 
     const token = jwt.sign(
-      { id: newUser.id, email: newUser.email },
+      { id: userId, email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
@@ -92,12 +60,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       message: 'User registered successfully',
       token,
-      user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        ipHistory: newUser.ipHistory
-      }
+      user: { id: userId, username, email }
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -115,7 +78,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const user = Array.from(users.values()).find(u => u.email === email);
+    const user = await UserModel.findByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -125,14 +88,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const updatedUser = updateIpHistory(user, clientIp);
-    users.set(user.id, updatedUser);
+    await UserModel.addLoginHistory(user.id, clientIp);
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
     );
+
+    const loginHistory = await UserModel.getLoginHistory(user.id);
 
     res.json({
       message: 'Login successful',
@@ -141,7 +105,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        ipHistory: user.ipHistory
+        ipHistory: loginHistory
       }
     });
   } catch (error) {
@@ -161,18 +125,20 @@ router.get('/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = users.get(decoded.id);
+    const user = await UserModel.findByEmail(decoded.email);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    const loginHistory = await UserModel.getLoginHistory(user.id);
 
     res.json({
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        ipHistory: user.ipHistory
+        ipHistory: loginHistory
       }
     });
   } catch (error) {
@@ -180,26 +146,5 @@ router.get('/me', async (req, res) => {
     res.status(500).json({ message: 'Error fetching user data' });
   }
 });
-
-// Add some test users for development
-const addTestUsers = async () => {
-  if (users.size === 0) {
-    const testUser = {
-      id: '1',
-      username: 'testuser',
-      email: 'test@example.com',
-      password: await bcrypt.hash('password123', 10),
-      createdAt: new Date().toISOString(),
-      ipHistory: [{
-        ip: 'localhost',
-        timestamp: new Date().toISOString()
-      }]
-    };
-    users.set(testUser.id, testUser);
-  }
-};
-
-// Initialize test data
-addTestUsers().catch(console.error);
 
 export default router;
