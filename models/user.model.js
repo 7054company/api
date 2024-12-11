@@ -29,14 +29,22 @@ export const UserModel = {
     await query(sql, [userId, ip]);
   },
 
-  async getLoginHistory(userId, limit = 5) {
-    const sql = `
-      SELECT ip_address as ip, login_time as timestamp
-      FROM login_history
-      WHERE user_id = ?
-      ORDER BY login_time DESC
-      LIMIT ?
-    `;
-    return await query(sql, [userId, limit]);
+async getLoginHistory(userId, limit = 5) {
+  // Ensure limit is a valid number
+  if (typeof limit !== 'number' || isNaN(limit) || limit <= 0) {
+    throw new Error('Invalid LIMIT value');
+  }
+
+  const sql = `
+    SELECT ip_address as ip, login_time as timestamp
+    FROM login_history
+    WHERE user_id = ?
+    ORDER BY login_time DESC
+    LIMIT ?
+  `;
+  
+  return await query(sql, [userId, limit]);
+
+
   }
 };
