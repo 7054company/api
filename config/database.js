@@ -1,41 +1,45 @@
-import { query, transaction } from '../config/database.js';
-import bcrypt from 'bcryptjs';
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 
-export const UserModel = {
-  async findByEmail(email) {
-    const sql = 'SELECT * FROM users WHERE email = ?';
-    const users = await query(sql, [email]);
-    return users[0];
-  },
+dotenv.config();
 
-  async create(userData) {
-    const { username, email, password } = userData;
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    const sql = `
-      INSERT INTO users (username, email, password, created_at) 
-      VALUES (?, ?, ?, NOW())
-    `;
-    
-    const result = await query(sql, [username, email, hashedPassword]);
-    return result.insertId;
-  },
+const pool = mysql.createPool({
+  host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+  port: 4000,
+  user: '2vcDnprMoTRS3qn.root',
+  password: 'MVrSL8eT3aywyy4p',
+  database: 'test',
+  charset: 'utf8mb4',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  ssl: {
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true
+  }
+});
 
-  async addLoginHistory(userId, ip) {
-    const sql = `
-      INSERT INTO login_history (user_id, ip_address, login_time)
-      VALUES (?, ?, NOW())
-    `;
-    await query(sql, [userId, ip]);
-  },
+export const query = async (sql, params) => {
+  try {
+    const [results] = await pool.execute(sql, params);
+    return results;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Database operation failed');
+  }
+};
 
-async getLoginHistory(userId) {
-  const sql = `
-    SELECT ip_address as ip, login_time as timestamp
-    FROM login_history
-    WHERE user_id = ?
-    ORDER BY login_time DESC
-  `;
-  return await query(sql, [userId]);
+export const transaction = async (callback) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 };
