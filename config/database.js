@@ -30,13 +30,6 @@ export const UserModel = {
   },
 
   async getLoginHistory(userId, limit = 5) {
-    // Ensure limit is a valid number
-    if (typeof limit !== 'number' || isNaN(limit) || limit <= 0) {
-      throw new Error('Invalid LIMIT value');
-    }
-
-    console.log(`Fetching login history for userId: ${userId} with limit: ${limit}`);  // Debugging log
-
     const sql = `
       SELECT ip_address as ip, login_time as timestamp
       FROM login_history
@@ -44,16 +37,6 @@ export const UserModel = {
       ORDER BY login_time DESC
       LIMIT ?
     `;
-    
-    // Log the parameters being passed to the query
-    console.log('SQL Params:', [userId, limit]);
-
-    try {
-      const result = await query(sql, [userId, limit]);
-      return result;
-    } catch (error) {
-      console.error('Database query failed:', error);  // Log error details
-      throw error;  // Rethrow error for further handling
-    }
+    return await query(sql, [userId, limit]);
   }
 };
