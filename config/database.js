@@ -29,14 +29,13 @@ export const UserModel = {
     await query(sql, [userId, ip]);
   },
 
-  async getLoginHistory(userId, limit = 5) {
-    const sql = `
-      SELECT ip_address as ip, login_time as timestamp
-      FROM login_history
-      WHERE user_id = ?
-      ORDER BY login_time DESC
-      LIMIT ?
-    `;
-    return await query(sql, [userId, limit]);
+async getLoginHistory(userId) {
+  const sql = `
+    SELECT ip_address as ip, login_time as timestamp
+    FROM login_history
+    WHERE user_id = ?
+    ORDER BY login_time DESC
+  `;
+  return await query(sql, [userId]);
   }
 };
