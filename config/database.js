@@ -4,14 +4,19 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const pool = mysql.createPool({
-  host: 'sql304.byetcluster.com',
-  user: '37825543_1',
-  password: 'S0IW3[Y[1p',
-  database: 'ezyro_37825543_739',
+  host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+  port: 4000,
+  user: '2vcDnprMoTRS3qn.root',
+  password: 'MVrSL8eT3aywyy4p',
+  database: 'test',
   charset: 'utf8mb4',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: {
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: true
+  }
 });
 
 export const query = async (sql, params) => {
