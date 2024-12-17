@@ -21,6 +21,17 @@ export const UserModel = {
     return result.insertId;
   },
 
+  async updatePassword(userId, newPassword) {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const sql = `
+      UPDATE users 
+      SET password = ?, 
+          updated_at = NOW() 
+      WHERE id = ?
+    `;
+    await query(sql, [hashedPassword, userId]);
+  },
+
   async addLoginHistory(userId, ip) {
     const sql = `
       INSERT INTO login_history (user_id, ip_address, login_time)
@@ -29,14 +40,13 @@ export const UserModel = {
     await query(sql, [userId, ip]);
   },
 
-async getLoginHistory(userId) {
-  const sql = `
-    SELECT ip_address as ip, login_time as timestamp
-    FROM login_history
-    WHERE user_id = ?
-    ORDER BY login_time DESC
-  `;
-  return await query(sql, [userId]);
-}
-
+  async getLoginHistory(userId) {
+    const sql = `
+      SELECT ip_address as ip, login_time as timestamp
+      FROM login_history
+      WHERE user_id = ?
+      ORDER BY login_time DESC
+    `;
+    return await query(sql, [userId]);
+  }
 };
