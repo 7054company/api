@@ -8,7 +8,7 @@ const router = express.Router();
 // Email configuration
 const EMAIL_CONFIG = {
   API_KEY: 'mlsn.b8c6f831b6c7f1c532464958216e96e23b87deba40463699e0f34233c74ca3b9',
-  SENDER_EMAIL: 'user@trial-o65qngkpr08lwr12.mlsender.net',
+  SENDER_EMAIL: 'user@trial-351ndgw0kwd4zqx8.mlsender.net',
   SENDER_NAME: 'Your Support Team',
 };
 
