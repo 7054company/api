@@ -7,8 +7,8 @@ const router = express.Router();
 
 // Email configuration
 const EMAIL_CONFIG = {
-  API_KEY: 'mlsn.a1a1dc095b6c029170820f074982ce3093e669e58f794a1db106b7d9139fbd69',
-  SENDER_EMAIL: 'user@trial-o65qngkpr08lwr12.mlsender.net',
+  API_KEY: 'mlsn.b8c6f831b6c7f1c532464958216e96e23b87deba40463699e0f34233c74ca3b9',
+  SENDER_EMAIL: 'user@trial-351ndgw0kwd4zqx8.mlsender.net',
   SENDER_NAME: 'Your vikas Support Team',
 };
 
