@@ -7,9 +7,9 @@ const router = express.Router();
 
 // Email configuration
 const EMAIL_CONFIG = {
-  API_KEY: 'mlsn.b8c6f831b6c7f1c532464958216e96e23b87deba40463699e0f34233c74ca3b9',
-  SENDER_EMAIL: 'user@trial-351ndgw0kwd4zqx8.mlsender.net',
-  SENDER_NAME: 'Your vikas Support Team',
+  API_KEY: 'mlsn.a1a1dc095b6c029170820f074982ce3093e669e58f794a1db106b7d9139fbd69',
+  SENDER_EMAIL: 'user@trial-o65qngkpr08lwr12.mlsender.net',
+  SENDER_NAME: 'Your Support Team',
 };
 
 // In-memory token storage (use database in production)
@@ -49,6 +49,7 @@ const tokenManager = {
 const emailService = {
   async sendResetEmail(toEmail, username, resetToken) {
     const url = 'https://api.mailersend.com/v1/email';
+    const resetUrl = `https://famous-liger-b17e21.netlify.app/forgot-password/code/${resetToken}`;
     
     const emailData = {
       from: {
@@ -57,8 +58,8 @@ const emailService = {
       },
       to: [{ email: toEmail, name: username }],
       subject: 'Password Reset Request',
-      text: this._getPlainText(username, resetToken),
-      html: this._getHtml(username, resetToken),
+      text: this._getPlainText(username, resetToken, resetUrl),
+      html: this._getHtml(username, resetToken, resetUrl),
     };
 
     try {
@@ -75,12 +76,15 @@ const emailService = {
     }
   },
 
-  _getPlainText(username, resetToken) {
+  _getPlainText(username, resetToken, resetUrl) {
     return `
       Hello ${username},
 
       We received a request to reset your password. Here's your password reset token:
       ${resetToken}
+
+      Or click the following link to reset your password:
+      ${resetUrl}
 
       This token will expire in 15 minutes.
 
@@ -91,7 +95,7 @@ const emailService = {
     `;
   },
 
-  _getHtml(username, resetToken) {
+  _getHtml(username, resetToken, resetUrl) {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb; margin-bottom: 24px;">Password Reset Request</h1>
@@ -102,6 +106,13 @@ const emailService = {
         
         <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
           <code style="font-size: 18px; color: #1f2937;">${resetToken}</code>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <a href="${resetUrl}" 
+             style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+            Reset Password
+          </a>
         </div>
         
         <p style="color: #6b7280; font-size: 14px; margin-bottom: 24px;">
