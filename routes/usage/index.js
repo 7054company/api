@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken } from '../auth.js';
+import { authenticateToken } from '../../auth.js';
 import { UsageModel } from '../models/usage.model.js';
 
 const router = express.Router();
