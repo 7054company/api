@@ -10,7 +10,7 @@ import logsRoutes from './routes/logs.js';
 import healthRoutes from './routes/health.js';
 import aiRouter from './routes/ai/index.js';
 import resetMailRoutes from './routes/mail/reset.js';
-import usageRoutes from './routes/usage/index.js';
+import usageRoutes from './routes/usage/usage.js';
 
 // ES Module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
