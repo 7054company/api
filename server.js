@@ -32,7 +32,7 @@ app.use('/api/log', logsRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/ai', aiRouter);
 app.use('/api/mail/reset', resetMailRoutes);
-app.use('/api/usage', usageRoutes); // Added usage routes that include balance endpoints
+app.use('/api/balance', usageRoutes); // Added usage routes that include balance endpoints
 
 // Basic route
 app.get('/', (req, res) => {
