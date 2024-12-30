@@ -12,20 +12,27 @@ const balanceController = {
       
       if (!balance) {
         return res.json({
-          balance: '0',
-          value: '0',
-          purchasePrice: '0',
-          profit: '0',
-          profitPercentage: '0'
+          balance: "0",
+          value: "0",
+          purchasePrice: "0",
+          profit: "0",
+          profitPercentage: "0"
         });
       }
 
+      // Convert string values to numbers before formatting
+      const numBalance = parseFloat(balance.balance) || 0;
+      const numValue = parseFloat(balance.value) || 0;
+      const numPurchasePrice = parseFloat(balance.purchase_price) || 0;
+      const numProfit = parseFloat(balance.profit) || 0;
+      const numProfitPercentage = parseFloat(balance.profit_percentage) || 0;
+
       res.json({
-        balance: balance.balance.toString(),
-        value: balance.value.toFixed(2),
-        purchasePrice: balance.purchase_price.toFixed(2),
-        profit: balance.profit.toFixed(2),
-        profitPercentage: balance.profit_percentage.toFixed(2)
+        balance: numBalance.toFixed(8),
+        value: numValue.toFixed(2),
+        purchasePrice: numPurchasePrice.toFixed(2),
+        profit: numProfit.toFixed(2),
+        profitPercentage: numProfitPercentage.toFixed(2)
       });
     } catch (error) {
       console.error('Error fetching balance:', error);
@@ -59,7 +66,7 @@ const balanceController = {
   }
 };
 
-// Balance routes
+// Balance routes - mounted at /api/balance
 router.get('/balance', authenticateToken, balanceController.getBalance);
 router.post('/balance', authenticateToken, balanceController.updateBalance);
 
