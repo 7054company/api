@@ -1,6 +1,6 @@
 import express from 'express';
-import { WaitlistModel } from '../models/waitlist.model.js';
-import { authenticateToken } from '../auth.js';
+import { WaitlistModel } from '../../models/waitlist.model.js';
+import { authenticateToken } from '../../auth.js';
 
 const router = express.Router();
 
