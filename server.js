@@ -11,7 +11,7 @@ import healthRoutes from './routes/health.js';
 import aiRouter from './routes/ai/index.js';
 import resetMailRoutes from './routes/mail/reset.js';
 import usageRoutes from './routes/usage/usage.js';
-import waitlistRoutes from './routes/waitlist.js';
+import waitlistRoutes from './routes/waitlist/waitlist.js';
 
 
 // ES Module fix for __dirname
