@@ -40,8 +40,8 @@ export const WaitlistModel = {
     return results[0];
   },
 
-  // Signup methods
-  async createSignup({ projectId, email, referralCode }) {
+   // Updated signup methods
+   async createSignup({ projectId, email, referralCode }) {
     const signupId = uuidv4();
     const uniqueCode = uuidv4().split('-')[0]; // Use first part of UUID as referral code
     
@@ -52,7 +52,10 @@ export const WaitlistModel = {
       ) VALUES (?, ?, ?, 'pending', ?, ?, NOW())
     `;
     
-    await query(sql, [signupId, projectId, email, uniqueCode, referralCode]);
+    // If referralCode is not provided, pass null for referred_by
+    const params = [signupId, projectId, email, uniqueCode, referralCode || null];
+    
+    await query(sql, params);
     return { signupId, uniqueCode };
   },
 
