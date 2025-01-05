@@ -42,6 +42,35 @@ router.get('/list', async (req, res) => {
   }
 });
 
+
+// Get single project details
+router.get('/:projectId', authenticateToken, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    
+    // Verify project exists and belongs to user
+    const project = await WaitlistModel.getProjectById(projectId);
+    if (!project || project.user_id !== req.user.id) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+
+    
+    // Get project signups
+    const signups = await WaitlistModel.getProjectSignups(projectId);
+
+    res.json({ 
+      project: {
+        ...project,
+        signups
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({ message: 'Failed to fetch project details' });
+  }
+});
+
 // Create new project (protected)
 router.post('/new', authenticateToken, async (req, res) => {
   try {
