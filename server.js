@@ -12,7 +12,7 @@ import aiRouter from './routes/ai/index.js';
 import resetMailRoutes from './routes/mail/reset.js';
 import usageRoutes from './routes/usage/usage.js';
 import waitlistRoutes from './routes/waitlist/waitlist.js';
-
+import waitlistUserRoutes from './routes/waitlist/users.js';
 
 // ES Module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -36,6 +36,7 @@ app.use('/api/ai', aiRouter);
 app.use('/api/mail/reset', resetMailRoutes);
 app.use('/api', usageRoutes); // Added usage routes that include balance endpoints
 app.use('/api/waitlist', waitlistRoutes);
+app.use('/api/waitlist', waitlistUserRoutes); // Add waitlist users routes
 
 // Basic route
 app.get('/', (req, res) => {
