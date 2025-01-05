@@ -86,7 +86,7 @@ router.get('/:projectId/signups', authenticateToken, async (req, res) => {
   }
 });
 
-// Join waitlist
+// Join waitlist route updated
 router.post('/:projectId/join', async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -108,11 +108,11 @@ router.post('/:projectId/join', async (req, res) => {
       return res.status(400).json({ message: 'Already signed up' });
     }
 
-    // Create signup
+    // Create signup with optional referral code
     const { signupId, uniqueCode } = await WaitlistModel.createSignup({
       projectId,
       email,
-      referralCode
+      referralCode: referralCode || null // Explicitly pass null if referralCode is not provided
     });
 
     res.status(201).json({
