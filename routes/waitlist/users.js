@@ -54,15 +54,14 @@ router.get('/:projectId/users/:userId', authenticateToken, async (req, res) => {
   }
 });
 
-
-// Get all forms for a project
-router.get('/:projectId/forms', authenticateToken, async (req, res) => {
+// Get all forms for a project (public route)
+router.get('/:projectId/forms', async (req, res) => {
   try {
     const { projectId } = req.params;
     
-    // Verify project exists and belongs to user
+    // Get project without auth check
     const project = await WaitlistModel.getProjectById(projectId);
-    if (!project || project.user_id !== req.user.id) {
+    if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
 
@@ -75,7 +74,7 @@ router.get('/:projectId/forms', authenticateToken, async (req, res) => {
   }
 });
 
-// Update forms for a project
+// Update forms for a project (protected route)
 router.post('/:projectId/forms', authenticateToken, async (req, res) => {
   try {
     const { projectId } = req.params;
