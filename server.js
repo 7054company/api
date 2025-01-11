@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import authRoutes from './auth.js';
-import apiRoutes from './api.js';
+import apiRoutes from './routes/api.js';
 import agentRoutes from './routes/agents.js';
 import logsRoutes from './routes/logs.js';
 import healthRoutes from './routes/health.js';
@@ -13,8 +13,10 @@ import resetMailRoutes from './routes/mail/reset.js';
 import usageRoutes from './routes/usage/usage.js';
 import waitlistRoutes from './routes/waitlist/waitlist.js';
 import waitlistUserRoutes from './routes/waitlist/users.js';
+import authxAppsRoutes from './routes/authx/apps.js';
+import authxAuthRoutes from './routes/authx/auth.js';
+import authxOAuthRoutes from './routes/authx/oauth.js';
 
-// ES Module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -34,9 +36,14 @@ app.use('/api/log', logsRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/ai', aiRouter);
 app.use('/api/mail/reset', resetMailRoutes);
-app.use('/api', usageRoutes); // Added usage routes that include balance endpoints
+app.use('/api', usageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
-app.use('/api/waitlist', waitlistUserRoutes); // Add waitlist users routes
+app.use('/api/waitlist', waitlistUserRoutes);
+
+// AuthX Routes
+app.use('/api/authx/apps', authxAppsRoutes);
+app.use('/api/authx/auth', authxAuthRoutes);
+app.use('/api/authx/oauth', authxOAuthRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
