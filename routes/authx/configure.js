@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken } from '../../../auth.js';
+import { authenticateToken } from '../../auth.js';
 import { AuthXConfigureModel } from '../../../models/authx/app.configure.model.js';
 
 const router = express.Router();
