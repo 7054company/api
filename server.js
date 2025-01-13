@@ -16,6 +16,7 @@ import waitlistUserRoutes from './routes/waitlist/users.js';
 import authxAppsRoutes from './routes/authx/apps.js';
 import authxAuthRoutes from './routes/authx/auth.js';
 import authxOAuthRoutes from './routes/authx/oauth.js';
+import authxConfigureRoutes from './routes/authx/configure.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,6 +45,8 @@ app.use('/api/waitlist', waitlistUserRoutes);
 app.use('/api/authx/apps', authxAppsRoutes);
 app.use('/api/authx/auth', authxAuthRoutes);
 app.use('/api/authx/oauth', authxOAuthRoutes);
+app.use('/api/authx/Configure', authxConfigureRoutes);
+
 
 // Basic route
 app.get('/', (req, res) => {
