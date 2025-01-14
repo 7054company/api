@@ -13,33 +13,52 @@ export const AuthXConfigureModel = {
     `;
     
     const [result] = await query(sql, [appId]);
-    return result?.configure || null;
+
+    if (result?.configure) {
+      try {
+        // Try to parse as JSON
+        return JSON.parse(result.configure);
+      } catch (e) {
+        // If it's not JSON, treat it as plain text
+        return result.configure;
+      }
+    }
+    return null;
   },
 
   // Update configuration
   async update(appId, updates) {
     // Get current config
     const currentConfig = await this.getByAppId(appId);
-    
-    // Merge with updates
-    const newConfig = {
-      ...currentConfig,
-      ...updates,
-      branding: {
-        ...(currentConfig?.branding || {}),
-        ...(updates.branding || {})
-      },
-      legal: {
-        ...(currentConfig?.legal || {}),
-        ...(updates.legal || {})
-      },
-      security: {
-        ...(currentConfig?.security || {}),
-        ...(updates.security || {})
-      }
-    };
 
-    // Update in database
+    let newConfig;
+
+    // If the current configuration is valid JSON, merge the updates into it
+    if (typeof currentConfig === 'object') {
+      newConfig = {
+        ...currentConfig,
+        ...updates,
+        branding: {
+          ...(currentConfig?.branding || {}),
+          ...(updates.branding || {}),
+        },
+        legal: {
+          ...(currentConfig?.legal || {}),
+          ...(updates.legal || {}),
+        },
+        security: {
+          ...(currentConfig?.security || {}),
+          ...(updates.security || {}),
+        },
+      };
+    } else {
+      // If current config is plain text, append the updates as text
+      newConfig = typeof updates === 'string' ? `${currentConfig}\n${updates}` : updates;
+    }
+
+    // Store as JSON string if it's an object, otherwise store as plain text
+    const configToStore = typeof newConfig === 'object' ? JSON.stringify(newConfig) : newConfig;
+
     const sql = `
       UPDATE authx_apps
       SET 
@@ -48,7 +67,7 @@ export const AuthXConfigureModel = {
       WHERE id = ?
     `;
 
-    await query(sql, [JSON.stringify(newConfig), appId]);
+    await query(sql, [configToStore, appId]);
     return newConfig;
   },
 
