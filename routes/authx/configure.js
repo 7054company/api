@@ -10,7 +10,7 @@ router.get('/:appId', authenticateToken, async (req, res) => {
     const config = await AuthXConfigureModel.getByAppId(req.params.appId);
     
     if (!config) {
-      return res.status(404).json({ config :{branding: {appName: "hi", logoUrl: "googl.coml", primaryColor: "#3B82F6", description: ""}}
+      return res.status(200).json({ config :{branding: {appName: "hi", logoUrl: "googl.coml", primaryColor: "#3B82F6", description: ""}}
     });
     }
 
