@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import authRoutes from './auth.js';
+// import userRoutes from './auth/user.js';
 import apiRoutes from './api.js';
 import agentRoutes from './routes/agents.js';
 import logsRoutes from './routes/logs.js';
@@ -32,6 +33,7 @@ app.use(express.json());
 
 // Routes
 app.use('/auth', authRoutes);
+// app.use('/auth', userRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/log', logsRoutes);
@@ -47,7 +49,7 @@ app.use('/api/authx/apps', authxAppsRoutes);
 app.use('/api/authx/auth', authxAuthRoutes);
 app.use('/api/authx/oauth', authxOAuthRoutes);
 app.use('/api/authx/configure', authxConfigureRoutes);
-app.use('/api/authx/:appId/user', authxUserRoutes);
+app.use('/api/authx/:appId/user', authxUserRoutes); // This route handles all user-related endpoints including /all-users
 
 // Basic route
 app.get('/', (req, res) => {
