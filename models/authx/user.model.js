@@ -96,7 +96,7 @@ export const AuthXUserModel = {
     
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
-  }
+  },
 
    // Add new method to get all users for an app
   async getAllUsers(appId) {
@@ -136,5 +136,4 @@ export const AuthXUserModel = {
       throw new Error('Failed to fetch users');
     }
   },
-
 };
