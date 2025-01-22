@@ -25,6 +25,44 @@ const validateApp = async (req, res, next) => {
   }
 };
 
+// Get all users for an app
+router.get('/all-users', validateApp, async (req, res) => {
+  try {
+    const { appId } = req.params;
+    const sql = `
+      SELECT 
+        id,
+        app_id,
+        email,
+        username,
+        status,
+        created_at,
+        updated_at
+      FROM authx_app_users 
+      WHERE app_id = ?
+      ORDER BY created_at DESC
+    `;
+    
+    const users = await query(sql, [appId]);
+
+    res.json({
+      message: 'Users retrieved successfully',
+      users: users.map(user => ({
+        id: user.id,
+        app_id: user.app_id,
+        email: user.email,
+        username: user.username,
+        status: user.status,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Failed to fetch users' });
+  }
+});
+
 // Register new user
 router.post('/signup', validateApp, async (req, res) => {
   try {
