@@ -135,5 +135,5 @@ export const AuthXUserModel = {
       console.error('Database Error:', error);
       throw new Error('Failed to fetch users');
     }
-  },
+  }
 };
