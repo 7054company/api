@@ -108,12 +108,7 @@ export const AuthXUserModel = {
         username,
         status,
         created_at,
-        updated_at,
-        (
-          SELECT COUNT(*) 
-          FROM authx_password_resets 
-          WHERE user_id = authx_app_users.id
-        ) as reset_count
+        updated_at
       FROM authx_app_users
       WHERE app_id = ?
       ORDER BY created_at DESC
