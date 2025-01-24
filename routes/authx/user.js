@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { AuthXUserModel } from '../../models/authx/user.model.js';
 import { AuthXAppModel } from '../../models/authx/app.model.js';
 
+
 const router = express.Router({ mergeParams: true });
 
 // Middleware to validate app
@@ -12,17 +13,22 @@ const validateApp = async (req, res, next) => {
   try {
     const { appId } = req.params;
     const app = await AuthXAppModel.getById(appId);
-    
+
     if (!app) {
       return res.status(404).json({ message: 'Application not found' });
     }
-    
+
     req.app = app;
     next();
   } catch (error) {
     console.error('App validation error:', error);
     res.status(500).json({ message: 'Error validating application' });
   }
+};
+
+// Helper function to get client IP
+const getClientIp = (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip || 'unknown';
 };
 
 // Get all users for an app
@@ -69,7 +75,7 @@ router.post('/signup', validateApp, async (req, res) => {
 
     // Update tracking info
     await AuthXUserModel.updateTracking(appId, userId, {
-      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      ip: getClientIp(req),
       userAgent: req.headers['user-agent'] || 'unknown',
       type: 'signup'
     });
@@ -118,7 +124,7 @@ router.post('/login', validateApp, async (req, res) => {
 
     // Update tracking info
     await AuthXUserModel.updateTracking(appId, user.id, {
-      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      ip: getClientIp(req),
       userAgent: req.headers['user-agent'] || 'unknown',
       type: 'login'
     });
@@ -159,7 +165,7 @@ router.post('/forgot-password', validateApp, async (req, res) => {
 
     // Log password reset request
     await AuthXUserModel.updateTracking(appId, user.id, {
-      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      ip: getClientIp(req),
       userAgent: req.headers['user-agent'] || 'unknown',
       type: 'password_reset_request'
     });
@@ -190,7 +196,7 @@ router.post('/reset-password', validateApp, async (req, res) => {
 
     // Log password reset completion
     await AuthXUserModel.updateTracking(appId, userId, {
-      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      ip: getClientIp(req),
       userAgent: req.headers['user-agent'] || 'unknown',
       type: 'password_reset_complete'
     });
@@ -226,7 +232,7 @@ router.get('/me', validateApp, async (req, res) => {
 
     // Update last activity
     await AuthXUserModel.updateTracking(appId, user.id, {
-      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      ip: getClientIp(req),
       userAgent: req.headers['user-agent'] || 'unknown',
       type: 'profile_view'
     });
