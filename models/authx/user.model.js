@@ -11,8 +11,8 @@ export const AuthXUserModel = {
     const sql = `
       INSERT INTO authx_app_users (
         id, app_id, email, password, username, status,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())
+        created_at, updated_at, logs
+      ) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW(), '{"ips":[],"activities":[]}')
     `;
     
     await query(sql, [userId, appId, email, hashedPassword, username]);
@@ -33,13 +33,109 @@ export const AuthXUserModel = {
   // Find user by ID within an app
   async findById(appId, userId) {
     const sql = `
-      SELECT id, email, username, status, created_at, updated_at
+      SELECT id, email, username, status, created_at, updated_at, logs
       FROM authx_app_users
       WHERE app_id = ? AND id = ?
     `;
     
     const [user] = await query(sql, [appId, userId]);
     return user || null;
+  },
+
+  // Update user's tracking information
+  async updateTracking(appId, userId, { ip, userAgent, type = 'login', timestamp = new Date().toISOString() }) {
+    // Get current user data
+    const user = await this.findById(appId, userId);
+    if (!user) return null;
+
+    // Parse current logs
+    const logs = JSON.parse(user.logs || '{"ips":[],"activities":[]}');
+
+    // Update IPs (keep only last 5)
+    if (!logs.ips.includes(ip)) {
+      logs.ips.unshift(ip);
+      if (logs.ips.length > 5) logs.ips.pop();
+    }
+
+    // Parse user agent information
+    const deviceInfo = this.parseUserAgent(userAgent);
+
+    // Add new activity log entry
+    const logEntry = {
+      timestamp,
+      ip,
+      type,
+      ...deviceInfo
+    };
+
+    // Keep only last 50 activities
+    logs.activities.unshift(logEntry);
+    if (logs.activities.length > 50) logs.activities.pop();
+
+    // Update database
+    const sql = `
+      UPDATE authx_app_users
+      SET 
+        logs = ?,
+        updated_at = NOW()
+      WHERE app_id = ? AND id = ?
+    `;
+
+    await query(sql, [
+      JSON.stringify(logs),
+      appId,
+      userId
+    ]);
+
+    return logs;
+  },
+
+  // Parse User-Agent string
+  parseUserAgent(userAgent) {
+    const info = {
+      browser: 'Unknown',
+      device: 'Unknown',
+      os: 'Unknown'
+    };
+
+    try {
+      // Basic browser detection
+      if (userAgent.includes('Firefox/')) {
+        info.browser = 'Firefox';
+      } else if (userAgent.includes('Chrome/')) {
+        info.browser = 'Chrome';
+      } else if (userAgent.includes('Safari/')) {
+        info.browser = 'Safari';
+      } else if (userAgent.includes('Edge/')) {
+        info.browser = 'Edge';
+      }
+
+      // Basic OS detection
+      if (userAgent.includes('Windows')) {
+        info.os = 'Windows';
+      } else if (userAgent.includes('Mac OS X')) {
+        info.os = 'macOS';
+      } else if (userAgent.includes('Linux')) {
+        info.os = 'Linux';
+      } else if (userAgent.includes('Android')) {
+        info.os = 'Android';
+      } else if (userAgent.includes('iOS')) {
+        info.os = 'iOS';
+      }
+
+      // Basic device detection
+      if (userAgent.includes('Mobile')) {
+        info.device = 'Mobile';
+      } else if (userAgent.includes('Tablet')) {
+        info.device = 'Tablet';
+      } else {
+        info.device = 'Desktop';
+      }
+    } catch (error) {
+      console.error('Error parsing user agent:', error);
+    }
+
+    return info;
   },
 
   // Update user password
@@ -95,10 +191,13 @@ export const AuthXUserModel = {
     if (!user) return null;
     
     const { password, ...userWithoutPassword } = user;
+    if (userWithoutPassword.logs) {
+      userWithoutPassword.logs = JSON.parse(userWithoutPassword.logs);
+    }
     return userWithoutPassword;
   },
 
-   // Add new method to get all users for an app
+  // Get all users for an app
   async getAllUsers(appId) {
     const sql = `
       SELECT 
@@ -108,7 +207,8 @@ export const AuthXUserModel = {
         username,
         status,
         created_at,
-        updated_at
+        updated_at,
+        logs
       FROM authx_app_users
       WHERE app_id = ?
       ORDER BY created_at DESC
@@ -117,14 +217,8 @@ export const AuthXUserModel = {
     try {
       const users = await query(sql, [appId]);
       return users.map(user => ({
-        id: user.id,
-        app_id: user.app_id,
-        email: user.email,
-        username: user.username,
-        status: user.status,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-        reset_count: user.reset_count
+        ...user,
+        logs: JSON.parse(user.logs || '{"ips":[],"activities":[]}')
       }));
     } catch (error) {
       console.error('Database Error:', error);
