@@ -29,8 +29,6 @@ const validateApp = async (req, res, next) => {
 router.get('/all-users', validateApp, async (req, res) => {
   try {
     const { appId } = req.params;
-
-    // Get all users using the model
     const users = await AuthXUserModel.getAllUsers(appId);
 
     res.json({
@@ -44,7 +42,6 @@ router.get('/all-users', validateApp, async (req, res) => {
     });
   }
 });
-
 
 // Register new user
 router.post('/signup', validateApp, async (req, res) => {
@@ -68,6 +65,13 @@ router.post('/signup', validateApp, async (req, res) => {
       email,
       password,
       username
+    });
+
+    // Update tracking info
+    await AuthXUserModel.updateTracking(appId, userId, {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      type: 'signup'
     });
 
     // Generate token
@@ -112,6 +116,13 @@ router.post('/login', validateApp, async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Update tracking info
+    await AuthXUserModel.updateTracking(appId, user.id, {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      type: 'login'
+    });
+
     const token = jwt.sign(
       { id: user.id, email: user.email, appId },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -146,7 +157,13 @@ router.post('/forgot-password', validateApp, async (req, res) => {
 
     await AuthXUserModel.addResetToken(appId, user.id, resetToken, expires);
 
-    // In a real application, send email with reset token
+    // Log password reset request
+    await AuthXUserModel.updateTracking(appId, user.id, {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      type: 'password_reset_request'
+    });
+
     res.json({ 
       message: 'Password reset instructions sent',
       resetToken // Only for development, remove in production
@@ -170,6 +187,13 @@ router.post('/reset-password', validateApp, async (req, res) => {
 
     await AuthXUserModel.updatePassword(appId, userId, newPassword);
     await AuthXUserModel.markTokenUsed(appId, token);
+
+    // Log password reset completion
+    await AuthXUserModel.updateTracking(appId, userId, {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      type: 'password_reset_complete'
+    });
 
     res.json({ message: 'Password reset successful' });
   } catch (error) {
@@ -199,6 +223,13 @@ router.get('/me', validateApp, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Update last activity
+    await AuthXUserModel.updateTracking(appId, user.id, {
+      ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+      type: 'profile_view'
+    });
 
     res.json({ user: AuthXUserModel.formatUser(user) });
   } catch (error) {
