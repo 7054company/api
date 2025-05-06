@@ -19,6 +19,7 @@ import authxAuthRoutes from './routes/authx/auth.js';
 import authxOAuthRoutes from './routes/authx/oauth.js';
 import authxConfigureRoutes from './routes/authx/configure.js';
 import authxUserRoutes from './routes/authx/user.js';
+import marketplaceRoutes from './routes/universex/marketplace/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -54,6 +55,10 @@ app.use('/api/authx/auth', authxAuthRoutes);
 app.use('/api/authx/oauth', authxOAuthRoutes);
 app.use('/api/authx/configure', authxConfigureRoutes);
 app.use('/api/authx/:appId/user', authxUserRoutes); // This route handles all user-related endpoints including /all-users
+
+
+// UniverseX Routes
+app.use('/api/universex/marketplace', marketplaceRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
