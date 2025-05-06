@@ -15,8 +15,8 @@ export const MarketplaceModel = {
     const sql = `
       INSERT INTO marketplace_products (
         id, name, description, type, price, category, config,
-        user_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        user_id, created_at, updated_at, download_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
     `;
     
     await query(sql, [
@@ -32,14 +32,13 @@ export const MarketplaceModel = {
       SELECT 
         p.*,
         u.username as author_name,
-        (SELECT COUNT(*) FROM product_downloads WHERE product_id = p.id) as download_count
+        p.download_count as download_count
       FROM marketplace_products p
       JOIN users u ON p.user_id = u.id
       WHERE JSON_EXTRACT(p.config, '$.visibility') = 'public' 
       AND p.status = 'published'
       ORDER BY p.created_at DESC
     `;
-    
     return await query(sql);
   },
 
@@ -49,28 +48,26 @@ export const MarketplaceModel = {
       SELECT 
         p.*,
         u.username as author_name,
-        (SELECT COUNT(*) FROM product_downloads WHERE product_id = p.id) as download_count
+        p.download_count as download_count
       FROM marketplace_products p
       JOIN users u ON p.user_id = u.id
       WHERE p.user_id = ?
       ORDER BY p.created_at DESC
     `;
-    
     return await query(sql, [userId]);
   },
 
-  // Get single product
+  // Get single product by ID
   async getById(id) {
     const sql = `
       SELECT 
         p.*,
         u.username as author_name,
-        (SELECT COUNT(*) FROM product_downloads WHERE product_id = p.id) as download_count
+        p.download_count as download_count
       FROM marketplace_products p
       JOIN users u ON p.user_id = u.id
       WHERE p.id = ?
     `;
-    
     const [product] = await query(sql, [id]);
     return product || null;
   },
@@ -84,7 +81,6 @@ export const MarketplaceModel = {
     const updateFields = [];
     const values = [];
 
-    // Handle regular fields
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         updateFields.push(`${key} = ?`);
@@ -92,14 +88,13 @@ export const MarketplaceModel = {
       }
     }
 
-    // Handle config updates
     const configUpdates = ['tags', 'visibility', 'documentation', 'apiEndpoint']
       .filter(key => key in updates);
 
     if (configUpdates.length > 0) {
       updateFields.push(`config = JSON_SET(
         COALESCE(config, '{}'),
-        ${configUpdates.map((key, i) => `'$.${key}', ?`).join(', ')}
+        ${configUpdates.map(() => `'$.${configUpdates.shift()}', ?`).join(', ')}
       )`);
       configUpdates.forEach(key => values.push(updates[key]));
     }
@@ -123,6 +118,16 @@ export const MarketplaceModel = {
   async delete(id) {
     const sql = 'DELETE FROM marketplace_products WHERE id = ?';
     await query(sql, [id]);
+  },
+
+  // Increment download count
+  async incrementDownloadCount(productId) {
+    const sql = `
+      UPDATE marketplace_products
+      SET download_count = download_count + 1
+      WHERE id = ?
+    `;
+    await query(sql, [productId]);
   }
 };
 
