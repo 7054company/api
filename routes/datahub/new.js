@@ -47,4 +47,38 @@ router.get('/x/:id', async (req, res) => {
   }
 });
 
+// Update data entry
+router.put('/x/:id', async (req, res) => {
+  try {
+    const data = await DataHubModel.getById(req.params.id);
+    
+    if (!data) {
+      return res.status(404).json({ message: 'Data not found' });
+    }
+
+    const updatedData = await DataHubModel.update(req.params.id, req.body);
+    res.json(updatedData);
+  } catch (error) {
+    console.error('Error updating data:', error);
+    res.status(500).json({ message: 'Failed to update data entry' });
+  }
+});
+
+// Delete data entry
+router.delete('/x/:id', async (req, res) => {
+  try {
+    const data = await DataHubModel.getById(req.params.id);
+    
+    if (!data) {
+      return res.status(404).json({ message: 'Data not found' });
+    }
+
+    await DataHubModel.delete(req.params.id);
+    res.json({ message: 'Data entry deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting data:', error);
+    res.status(500).json({ message: 'Failed to delete data entry' });
+  }
+});
+
 export default router;
