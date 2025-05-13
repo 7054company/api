@@ -20,6 +20,7 @@ import authxOAuthRoutes from './routes/authx/oauth.js';
 import authxConfigureRoutes from './routes/authx/configure.js';
 import authxUserRoutes from './routes/authx/user.js';
 import marketplaceRoutes from './routes/universex/marketplace/index.js';
+import datahubRoutes from './routes/datahub/new.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -59,6 +60,9 @@ app.use('/api/authx/:appId/user', authxUserRoutes); // This route handles all us
 
 // UniverseX Routes
 app.use('/api/universex/marketplace', marketplaceRoutes);
+
+// datahub 
+app.use('/api/d', datahubRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
