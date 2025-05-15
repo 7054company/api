@@ -9,7 +9,8 @@ router.post('/new', async (req, res) => {
   try {
     const { userId = 0, data = {}, bucket_id = null } = req.body;
     const id = uuidv4();
-    const apiKey = crypto.randomBytes(32).toString('hex');
+    const apiKey = uuidv4().replace(/-/g, '');
+
     
     const config = {
       apikey: apiKey,
