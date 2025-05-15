@@ -4,29 +4,11 @@ import { query } from '../../config/database.js';
 
 const router = express.Router();
 
-// Helper to safely stringify
-const safeJSONStringify = (input, fallback = '{}') => {
-  if (typeof input === 'string') return input;
-  try {
-    return JSON.stringify(input ?? {});
-  } catch {
-    return fallback;
-  }
-};
-
-// Helper to safely stringify arrays
-const safeJSONStringifyArray = (input) => {
-  try {
-    return JSON.stringify(Array.isArray(input) ? input : [input]);
-  } catch {
-    return '[]';
-  }
-};
-
 // Create new data entry
 router.post('/new', async (req, res) => {
   try {
     const { userId = 0, data = '', name = '', bucket_id = null, tags = [] } = req.body;
+
     const id = uuidv4();
     const apiKey = uuidv4().replace(/-/g, '');
 
@@ -35,6 +17,7 @@ router.post('/new', async (req, res) => {
       ap1: 'disable'
     };
 
+    // Save everything as string — no assumptions
     const sql = `
       INSERT INTO datahub_data (
         id, user_id, bucket_id, name, data, config, tags, created_at, updated_at
@@ -45,10 +28,10 @@ router.post('/new', async (req, res) => {
       id,
       userId,
       bucket_id,
-      name,
-      typeof data === 'string' ? data : safeJSONStringify(data, '""'),
-      safeJSONStringify(config),
-      safeJSONStringifyArray(tags)
+      String(name ?? ''),
+      String(data ?? ''),
+      JSON.stringify(config),
+      JSON.stringify(Array.isArray(tags) ? tags : [tags])
     ]);
 
     res.status(201).json({
@@ -89,13 +72,17 @@ router.get('/x/:id', async (req, res) => {
 
     try {
       result.config = JSON.parse(result.config || '{}');
-      result.tags = JSON.parse(result.tags || '[]');
-      result.requiresApiKey = result.config.ap1 === 'enable';
-    } catch (e) {
+    } catch {
       result.config = {};
-      result.tags = [];
-      result.requiresApiKey = false;
     }
+
+    try {
+      result.tags = JSON.parse(result.tags || '[]');
+    } catch {
+      result.tags = [];
+    }
+
+    result.requiresApiKey = result.config.ap1 === 'enable';
 
     res.json(result);
   } catch (error) {
@@ -113,27 +100,31 @@ router.put('/x/:id', async (req, res) => {
 
     if (data !== undefined) {
       updateFields.push('data = ?');
-      values.push(typeof data === 'string' ? data : safeJSONStringify(data, '""'));
+      values.push(String(data));
     }
 
     if (name !== undefined) {
       updateFields.push('name = ?');
-      values.push(name);
+      values.push(String(name));
     }
 
     if (tags !== undefined) {
       updateFields.push('tags = ?');
-      values.push(safeJSONStringifyArray(tags));
+      values.push(JSON.stringify(Array.isArray(tags) ? tags : [tags]));
     }
 
     if (config !== undefined) {
       updateFields.push('config = ?');
-      values.push(safeJSONStringify(config));
+      try {
+        values.push(JSON.stringify(config));
+      } catch {
+        values.push('{}');
+      }
     }
 
     if (logs !== undefined) {
       updateFields.push('logs = ?');
-      values.push(safeJSONStringify(logs));
+      values.push(typeof logs === 'string' ? logs : JSON.stringify(logs));
     }
 
     if (bucket_id !== undefined) {
