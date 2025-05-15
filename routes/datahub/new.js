@@ -4,41 +4,57 @@ import { query } from '../../config/database.js';
 
 const router = express.Router();
 
+// Helper to safely stringify
+const safeJSONStringify = (input, fallback = '{}') => {
+  if (typeof input === 'string') return input;
+  try {
+    return JSON.stringify(input ?? {});
+  } catch {
+    return fallback;
+  }
+};
+
+// Helper to safely stringify arrays
+const safeJSONStringifyArray = (input) => {
+  try {
+    return JSON.stringify(Array.isArray(input) ? input : [input]);
+  } catch {
+    return '[]';
+  }
+};
+
 // Create new data entry
 router.post('/new', async (req, res) => {
   try {
     const { userId = 0, data = '', name = '', bucket_id = null, tags = [] } = req.body;
     const id = uuidv4();
     const apiKey = uuidv4().replace(/-/g, '');
-    
+
     const config = {
       apikey: apiKey,
       ap1: 'disable'
     };
-
-    // Handle tags
-    const normalizedTags = Array.isArray(tags) ? tags : [tags];
 
     const sql = `
       INSERT INTO datahub_data (
         id, user_id, bucket_id, name, data, config, tags, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
-    
+
     await query(sql, [
-      id, 
-      userId, 
+      id,
+      userId,
       bucket_id,
       name,
-      data.toString(), // Convert any input to string
-      JSON.stringify(config),
-      JSON.stringify(normalizedTags)
+      typeof data === 'string' ? data : safeJSONStringify(data, '""'),
+      safeJSONStringify(config),
+      safeJSONStringifyArray(tags)
     ]);
-    
-    res.status(201).json({ 
+
+    res.status(201).json({
       success: true,
-      id, 
-      apiKey 
+      id,
+      apiKey
     });
   } catch (error) {
     console.error('Error creating data:', error);
@@ -64,18 +80,23 @@ router.get('/x/:id', async (req, res) => {
       FROM datahub_data
       WHERE id = ?
     `;
-    
+
     const [result] = await query(sql, [req.params.id]);
-    
+
     if (!result) {
       return res.status(404).json({ message: 'Data not found' });
     }
-    
-    // Parse config and tags
-    const config = JSON.parse(result.config || '{}');
-    result.requiresApiKey = config.ap1 === 'enable';
-    result.tags = JSON.parse(result.tags || '[]');
-    
+
+    try {
+      result.config = JSON.parse(result.config || '{}');
+      result.tags = JSON.parse(result.tags || '[]');
+      result.requiresApiKey = result.config.ap1 === 'enable';
+    } catch (e) {
+      result.config = {};
+      result.tags = [];
+      result.requiresApiKey = false;
+    }
+
     res.json(result);
   } catch (error) {
     console.error('Error fetching data:', error);
@@ -92,7 +113,7 @@ router.put('/x/:id', async (req, res) => {
 
     if (data !== undefined) {
       updateFields.push('data = ?');
-      values.push(data.toString());
+      values.push(typeof data === 'string' ? data : safeJSONStringify(data, '""'));
     }
 
     if (name !== undefined) {
@@ -102,17 +123,17 @@ router.put('/x/:id', async (req, res) => {
 
     if (tags !== undefined) {
       updateFields.push('tags = ?');
-      values.push(JSON.stringify(Array.isArray(tags) ? tags : [tags]));
+      values.push(safeJSONStringifyArray(tags));
     }
 
     if (config !== undefined) {
       updateFields.push('config = ?');
-      values.push(JSON.stringify(config));
+      values.push(safeJSONStringify(config));
     }
 
     if (logs !== undefined) {
       updateFields.push('logs = ?');
-      values.push(JSON.stringify(logs));
+      values.push(safeJSONStringify(logs));
     }
 
     if (bucket_id !== undefined) {
@@ -134,13 +155,10 @@ router.put('/x/:id', async (req, res) => {
     `;
 
     await query(sql, values);
-    
-    const updatedData = await query(
-      'SELECT * FROM datahub_data WHERE id = ?', 
-      [req.params.id]
-    );
-    
-    res.json(updatedData[0]);
+
+    const [updatedData] = await query('SELECT * FROM datahub_data WHERE id = ?', [req.params.id]);
+
+    res.json(updatedData);
   } catch (error) {
     console.error('Error updating data:', error);
     res.status(500).json({ message: 'Failed to update data entry' });
