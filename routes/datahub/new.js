@@ -7,10 +7,9 @@ const router = express.Router();
 // Create new data entry
 router.post('/new', async (req, res) => {
   try {
-    const { userId = 0, data = {}, bucket_id = null } = req.body;
+    const { userId = 0, data = '', name = '', bucket_id = null, tags = [] } = req.body;
     const id = uuidv4();
     const apiKey = uuidv4().replace(/-/g, '');
-
     
     const config = {
       apikey: apiKey,
@@ -18,27 +17,29 @@ router.post('/new', async (req, res) => {
     };
 
     // Handle tags
-    let tags = [];
-    if (data.tags) {
-      tags = Array.isArray(data.tags) ? data.tags : [data.tags];
-    }
+    const normalizedTags = Array.isArray(tags) ? tags : [tags];
 
     const sql = `
       INSERT INTO datahub_data (
-        id, user_id, bucket_id, data, config, tags, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+        id, user_id, bucket_id, name, data, config, tags, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
     
     await query(sql, [
       id, 
       userId, 
       bucket_id,
-      JSON.stringify(data),
+      name,
+      data.toString(), // Convert any input to string
       JSON.stringify(config),
-      JSON.stringify(tags)
+      JSON.stringify(normalizedTags)
     ]);
     
-    return { id, apiKey };
+    res.status(201).json({ 
+      success: true,
+      id, 
+      apiKey 
+    });
   } catch (error) {
     console.error('Error creating data:', error);
     res.status(500).json({ message: 'Failed to create data entry' });
@@ -53,6 +54,7 @@ router.get('/x/:id', async (req, res) => {
         id,
         user_id,
         bucket_id,
+        name,
         data,
         config,
         tags,
@@ -84,15 +86,38 @@ router.get('/x/:id', async (req, res) => {
 // Update data entry
 router.put('/x/:id', async (req, res) => {
   try {
-    const allowedFields = ['data', 'config', 'logs', 'tags', 'bucket_id'];
+    const { data, name, tags, config, logs, bucket_id } = req.body;
     const updateFields = [];
     const values = [];
 
-    for (const [key, value] of Object.entries(req.body)) {
-      if (allowedFields.includes(key)) {
-        updateFields.push(`${key} = ?`);
-        values.push(JSON.stringify(value));
-      }
+    if (data !== undefined) {
+      updateFields.push('data = ?');
+      values.push(data.toString());
+    }
+
+    if (name !== undefined) {
+      updateFields.push('name = ?');
+      values.push(name);
+    }
+
+    if (tags !== undefined) {
+      updateFields.push('tags = ?');
+      values.push(JSON.stringify(Array.isArray(tags) ? tags : [tags]));
+    }
+
+    if (config !== undefined) {
+      updateFields.push('config = ?');
+      values.push(JSON.stringify(config));
+    }
+
+    if (logs !== undefined) {
+      updateFields.push('logs = ?');
+      values.push(JSON.stringify(logs));
+    }
+
+    if (bucket_id !== undefined) {
+      updateFields.push('bucket_id = ?');
+      values.push(bucket_id);
     }
 
     if (updateFields.length === 0) {
