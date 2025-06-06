@@ -22,6 +22,9 @@ import authxUserRoutes from './routes/authx/user.js';
 import marketplaceRoutes from './routes/universex/marketplace/index.js';
 import datahubRoutes from './routes/datahub/new.js';
 import datahubBucketRoutes from './routes/datahub/b.js';
+import d from './routes/news/index.js';
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -65,6 +68,9 @@ app.use('/api/universex/marketplace', marketplaceRoutes);
 // datahub 
 app.use('/api/d', datahubRoutes);
 app.use('/api/d', datahubBucketRoutes);
+
+//f
+app.use('/api/f/*', d);
 
 // Basic route
 app.get('/', (req, res) => {
