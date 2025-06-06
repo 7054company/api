@@ -70,7 +70,7 @@ app.use('/api/d', datahubRoutes);
 app.use('/api/d', datahubBucketRoutes);
 
 //f
-app.use('/api/f/*', d);
+app.use('/api/f', d);
 
 // Basic route
 app.get('/', (req, res) => {
