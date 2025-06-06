@@ -3,6 +3,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
+
 const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmU';
 
 router.post('/verify', async (req, res) => {
@@ -17,7 +18,7 @@ Explain briefly why. The user asked:
 `;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [
           {
