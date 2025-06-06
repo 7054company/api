@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmUY';
+const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmU';
 
 router.post('/verify', async (req, res) => {
   const { query } = req.body;
