@@ -2,7 +2,8 @@ import express from 'express';
 import axios from 'axios';
 
 const router = express.Router();
-const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmU'; // Your API key
+
+const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmU';
 
 router.post('/verify', async (req, res) => {
   const { query } = req.body;
@@ -33,20 +34,7 @@ Explain briefly why. The user asked:
     );
 
     const reply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer found.';
-
-    // Determine status from AI reply
-    const replyLower = reply.toLowerCase();
-    let status = 'not verified';
-
-    if (replyLower.includes('true') || replyLower.includes('correct') || replyLower.includes('verified')) {
-      status = 'verified';
-    } else if (replyLower.includes('false') || replyLower.includes('fake') || replyLower.includes('incorrect')) {
-      status = 'fake';
-    } else if (replyLower.includes('unverified') || replyLower.includes('unknown') || replyLower.includes('cannot confirm')) {
-      status = 'not verified';
-    }
-
-    res.json({ result: reply, status });
+    res.json({ result: reply });
 
   } catch (error) {
     console.error('Gemini API error:', error.response?.data || error.message);
