@@ -38,5 +38,4 @@ Explain briefly why. The user asked:
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Gemini News Verifier running on http://localhost:${PORT}`));
+
