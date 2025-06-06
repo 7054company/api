@@ -2,7 +2,7 @@ import express from 'express';
 import axios from 'axios';
 
 const router = express.Router();
-const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmU'; // Use your valid key
+const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmU'; // Your API key
 
 router.post('/verify', async (req, res) => {
   const { query } = req.body;
@@ -16,7 +16,7 @@ Explain briefly why. The user asked:
 `;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro-latest:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [
           {
@@ -33,7 +33,20 @@ Explain briefly why. The user asked:
     );
 
     const reply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer found.';
-    res.json({ result: reply });
+
+    // Determine status from AI reply
+    const replyLower = reply.toLowerCase();
+    let status = 'not verified';
+
+    if (replyLower.includes('true') || replyLower.includes('correct') || replyLower.includes('verified')) {
+      status = 'verified';
+    } else if (replyLower.includes('false') || replyLower.includes('fake') || replyLower.includes('incorrect')) {
+      status = 'fake';
+    } else if (replyLower.includes('unverified') || replyLower.includes('unknown') || replyLower.includes('cannot confirm')) {
+      status = 'not verified';
+    }
+
+    res.json({ result: reply, status });
 
   } catch (error) {
     console.error('Gemini API error:', error.response?.data || error.message);
