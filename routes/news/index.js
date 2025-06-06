@@ -1,5 +1,6 @@
 import express from 'express';
 const router = express.Router();
+import axios from 'axios';
 
 const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmUY';
 
