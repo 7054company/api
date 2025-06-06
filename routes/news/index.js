@@ -5,7 +5,7 @@ const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmUY';
 
 
 
-app.post('/verify', async (req, res) => {
+router.post('/verify', async (req, res) => {
   const { query } = req.body;
   if (!query) return res.status(400).json({ error: 'Missing query' });
 
