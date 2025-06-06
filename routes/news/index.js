@@ -1,8 +1,5 @@
-require('dotenv').config();
-const express = require('express');
-const axios = require('axios');
-const app = express();
-app.use(express.json());
+import express from 'express';
+const router = express.Router();
 
 const GEMINI_API_KEY = AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmUY;
 
