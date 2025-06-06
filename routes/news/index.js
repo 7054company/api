@@ -1,10 +1,9 @@
 import express from 'express';
-const router = express.Router();
 import axios from 'axios';
 
+const router = express.Router();
+
 const GEMINI_API_KEY = 'AIzaSyBK_GYb6nfjIZ8OlHT4xgguA5NeCSLqGmUY';
-
-
 
 router.post('/verify', async (req, res) => {
   const { query } = req.body;
@@ -18,14 +17,19 @@ Explain briefly why. The user asked:
 `;
 
     const response = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + GEMINI_API_KEY,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [
           {
-            parts: [{ text: prompt }],
-            role: "user"
+            role: "user",
+            parts: [{ text: prompt }]
           }
         ]
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       }
     );
 
@@ -33,8 +37,11 @@ Explain briefly why. The user asked:
     res.json({ result: reply });
 
   } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).json({ error: 'Error from Gemini API', detail: error.message });
+    console.error('Gemini API error:', error.response?.data || error.message);
+    res.status(500).json({
+      error: 'Error from Gemini API',
+      detail: error.response?.data || error.message
+    });
   }
 });
 
