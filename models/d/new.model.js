@@ -4,16 +4,22 @@ import crypto from 'crypto';
 import https from 'https';
 import http from 'http';
 
-// Function to safely parse JSON or return raw text
-function parseJSONOrText(data) {
-  try {
-    return typeof data === 'string' ? JSON.parse(data) : data;
-  } catch (e) {
-    return data; // return the raw data if it's not valid JSON
-  }
-}
-
 export const DataHubModel = {
+  // Helper function to safely parse JSON or return the object
+  parseJSONOrText(value) {
+    // If value is an object already, just return it
+    if (typeof value === 'object' && value !== null) {
+      return value;
+    }
+
+    // If it's a string, try parsing it as JSON
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return value;  // If parsing fails, return the original value (could be string or other)
+    }
+  },
+
   // Generate random API key
   generateApiKey() {
     return crypto.randomBytes(32).toString('hex');
@@ -23,7 +29,7 @@ export const DataHubModel = {
   async create(data = {}) {
     const id = uuidv4();
     const apiKey = this.generateApiKey();
-    
+
     const config = {
       apikey: apiKey,
       ap1: data.requiresAuth ? 'enable' : 'disable',
@@ -99,7 +105,7 @@ export const DataHubModel = {
         
         response.on('end', () => {
           if (response.statusCode === 200) {
-            resolve(data); // this could be text, HTML, or JSON
+            resolve(data);
           } else {
             reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
           }
@@ -171,7 +177,7 @@ export const DataHubModel = {
         created_at,
         updated_at
       FROM datahub_data
-      WHERE id = ? ${userId ? 'AND user_id = ?' : ''}  
+      WHERE id = ? ${userId ? 'AND user_id = ?' : ''} 
     `;
     
     const params = userId ? [id, userId] : [id];
@@ -179,13 +185,14 @@ export const DataHubModel = {
     
     if (!result) return null;
     
-    // Parse config and tags, but only if it's valid JSON
-    result.config = parseJSONOrText(result.config || '{}');
-    result.tags = parseJSONOrText(result.tags || '[]');
-    result.requiresApiKey = result.config.ap1 === 'enable';
+    // Parse config and tags
+    const config = this.parseJSONOrText(result.config || '{}');
+    result.requiresApiKey = config.ap1 === 'enable';
     result.isPublic = result.is_public;
     result.syncUrl = result.sync_url;
     result.lastSynced = result.last_synced;
+    result.tags = this.parseJSONOrText(result.tags || '[]');
+    result.config = config;
     
     // If it's a folder, get children
     if (result.type === 'folder') {
@@ -195,73 +202,41 @@ export const DataHubModel = {
     return result;
   },
 
-  // Get item by path
-  async getByPath(userId, path) {
-    if (!path || path === '/') {
-      return null;
-    }
+  // Get root items for a user
+  async getRootItems(userId) {
+    const sql = `
+      SELECT 
+        id,
+        user_id,
+        parent_id,
+        name,
+        type,
+        content,
+        file_size,
+        mime_type,
+        is_public,
+        config,
+        tags,
+        sync_url,
+        last_synced,
+        created_at,
+        updated_at
+      FROM datahub_data
+      WHERE user_id = ? AND parent_id IS NULL
+      ORDER BY type DESC, name ASC
+    `;
+    
+    const items = await query(sql, [userId]);
 
-    // Remove leading slash
-    if (path.startsWith('/')) {
-      path = path.substring(1);
-    }
-
-    const pathParts = path.split('/').filter(part => part.length > 0);
-    let currentParentId = null;
-    let currentItem = null;
-
-    for (const part of pathParts) {
-      const sql = `
-        SELECT 
-          id,
-          user_id,
-          parent_id,
-          name,
-          type,
-          content,
-          file_size,
-          mime_type,
-          is_public,
-          config,
-          tags,
-          sync_url,
-          last_synced,
-          created_at,
-          updated_at
-        FROM datahub_data
-        WHERE user_id = ? AND name = ? AND ${currentParentId ? 'parent_id = ?' : 'parent_id IS NULL'}
-      `;
-      
-      const params = currentParentId 
-        ? [userId, part, currentParentId]
-        : [userId, part];
-      
-      const [item] = await query(sql, params);
-      
-      if (!item) {
-        return null;
-      }
-      
-      currentItem = item;
-      currentParentId = item.id;
-    }
-
-    if (currentItem) {
-      // Parse config and tags
-      currentItem.config = parseJSONOrText(currentItem.config || '{}');
-      currentItem.tags = parseJSONOrText(currentItem.tags || '[]');
-      currentItem.requiresApiKey = currentItem.config.ap1 === 'enable';
-      currentItem.isPublic = currentItem.is_public;
-      currentItem.syncUrl = currentItem.sync_url;
-      currentItem.lastSynced = currentItem.last_synced;
-      
-      // If it's a folder, get children
-      if (currentItem.type === 'folder') {
-        currentItem.children = await this.getChildren(currentItem.id);
-      }
-    }
-
-    return currentItem;
+    return items.map(item => ({
+      ...item,
+      config: this.parseJSONOrText(item.config || '{}'),
+      tags: this.parseJSONOrText(item.tags || '[]'),
+      requiresApiKey: item.config.ap1 === 'enable',
+      isPublic: item.is_public,
+      syncUrl: item.sync_url,
+      lastSynced: item.last_synced
+    }));
   },
 
   // Get children of a folder
@@ -284,7 +259,7 @@ export const DataHubModel = {
         created_at,
         updated_at
       FROM datahub_data
-      WHERE parent_id = ? ${userId ? 'AND user_id = ?' : ''}
+      WHERE parent_id = ? ${userId ? 'AND user_id = ?' : ''} 
       ORDER BY type DESC, name ASC
     `;
     
@@ -293,8 +268,9 @@ export const DataHubModel = {
     
     return children.map(child => ({
       ...child,
-      config: parseJSONOrText(child.config || '{}'),
-      tags: parseJSONOrText(child.tags || '[]'),
+      config: this.parseJSONOrText(child.config || '{}'),
+      tags: this.parseJSONOrText(child.tags || '[]'),
+      requiresApiKey: child.config.ap1 === 'enable',
       isPublic: child.is_public,
       syncUrl: child.sync_url,
       lastSynced: child.last_synced
@@ -343,6 +319,51 @@ export const DataHubModel = {
     return this.getById(id, userId);
   },
 
+  // Rename file or folder
+  async rename(id, newName, userId = null) {
+    return this.update(id, { name: newName }, userId);
+  },
+
+  // Move file or folder to different parent
+  async move(id, newParentId, userId = null) {
+    // Validate that we're not moving a folder into itself or its children
+    if (newParentId) {
+      const isValidMove = await this.validateMove(id, newParentId, userId);
+      if (!isValidMove) {
+        throw new Error('Cannot move folder into itself or its children');
+      }
+    }
+
+    return this.update(id, { parent_id: newParentId }, userId);
+  },
+
+  // Validate move operation to prevent circular references
+  async validateMove(itemId, newParentId, userId = null) {
+    if (itemId === newParentId) return false;
+
+    // Check if newParentId is a descendant of itemId
+    const descendants = await this.getAllDescendants(itemId, userId);
+    return !descendants.some(desc => desc.id === newParentId);
+  },
+
+  // Get all descendants of an item (recursive)
+  async getAllDescendants(itemId, userId = null) {
+    const sql = `
+      WITH RECURSIVE descendants AS (
+        SELECT id, parent_id, name, type FROM datahub_data 
+        WHERE parent_id = ? ${userId ? 'AND user_id = ?' : ''} 
+        UNION ALL
+        SELECT d.id, d.parent_id, d.name, d.type FROM datahub_data d
+        INNER JOIN descendants desc ON d.parent_id = desc.id
+        ${userId ? 'WHERE d.user_id = ?' : ''} 
+      )
+      SELECT * FROM descendants
+    `;
+
+    const params = userId ? [itemId, userId, userId] : [itemId];
+    return await query(sql, params);
+  },
+
   // Delete data entry (and all children if folder)
   async delete(id, userId = null) {
     // First, get the item to check if it's a folder
@@ -374,11 +395,11 @@ export const DataHubModel = {
       WHERE id IN (
         WITH RECURSIVE descendants AS (
           SELECT id FROM datahub_data 
-          WHERE parent_id = ? ${userId ? 'AND user_id = ?' : ''}
+          WHERE parent_id = ? ${userId ? 'AND user_id = ?' : ''} 
           UNION ALL
           SELECT d.id FROM datahub_data d
           INNER JOIN descendants desc ON d.parent_id = desc.id
-          ${userId ? 'WHERE d.user_id = ?' : ''}
+          ${userId ? 'WHERE d.user_id = ?' : ''} 
         )
         SELECT id FROM descendants
       )
@@ -386,5 +407,5 @@ export const DataHubModel = {
 
     const params = userId ? [parentId, userId, userId] : [parentId];
     await query(sql, params);
-  },
+  }
 };
