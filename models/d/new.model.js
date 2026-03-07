@@ -5,16 +5,6 @@ import https from 'https';
 import http from 'http';
 
 export const DataHubModel = {
-  // Helper function to safely parse JSON
-  safeParse(jsonString) {
-    try {
-      return JSON.parse(jsonString);
-    } catch (error) {
-      console.error("JSON parse error:", error);
-      return {};  // Return an empty object if parsing fails
-    }
-  },
-
   // Generate random API key
   generateApiKey() {
     return crypto.randomBytes(32).toString('hex');
@@ -24,7 +14,7 @@ export const DataHubModel = {
   async create(data = {}) {
     const id = uuidv4();
     const apiKey = this.generateApiKey();
-    
+
     const config = {
       apikey: apiKey,
       ap1: data.requiresAuth ? 'enable' : 'disable',
@@ -68,8 +58,8 @@ export const DataHubModel = {
       content ? content.length : 0,
       data.mimeType || null,
       data.isPublic || false,
-      JSON.stringify(config),
-      JSON.stringify(tags),
+      JSON.stringify(config),  // Only stringify when saving to DB
+      JSON.stringify(tags),    // Only stringify when saving to DB
       data.syncUrl || null,
       data.syncUrl ? new Date() : null
     ]);
@@ -177,16 +167,13 @@ export const DataHubModel = {
     
     if (!result) return null;
     
-    // Safely parse config and tags
-    const config = result.config ? this.safeParse(result.config) : {};
-    const tags = result.tags ? this.safeParse(result.tags) : [];
-    
-    result.requiresApiKey = config.ap1 === 'enable';
+    // Leave config and tags as raw data (don't parse them)
+    result.requiresApiKey = result.config && result.config.ap1 === 'enable';
     result.isPublic = result.is_public;
     result.syncUrl = result.sync_url;
     result.lastSynced = result.last_synced;
-    result.tags = tags;
-    result.config = config;
+    result.tags = result.tags || [];  // Keep as raw tags (not parsed)
+    result.config = result.config || {};  // Keep config as raw data
     
     // If it's a folder, get children
     if (result.type === 'folder') {
@@ -224,9 +211,9 @@ export const DataHubModel = {
     
     return items.map(item => ({
       ...item,
-      config: this.safeParse(item.config || '{}'),
-      tags: this.safeParse(item.tags || '[]'),
-      requiresApiKey: this.safeParse(item.config || '{}').ap1 === 'enable',
+      config: item.config || {},  // Keep raw config
+      tags: item.tags || [],      // Keep raw tags
+      requiresApiKey: item.config && item.config.ap1 === 'enable',
       isPublic: item.is_public,
       syncUrl: item.sync_url,
       lastSynced: item.last_synced
@@ -243,7 +230,7 @@ export const DataHubModel = {
       if (allowedFields.includes(key)) {
         updateFields.push(`${key} = ?`);
         if (['config', 'tags', 'logs'].includes(key)) {
-          values.push(JSON.stringify(value));
+          values.push(JSON.stringify(value));  // Only stringify when saving to DB
         } else if (key === 'last_synced' && value instanceof Date) {
           values.push(value);
         } else {
@@ -275,49 +262,6 @@ export const DataHubModel = {
     return this.getById(id, userId);
   },
 
-  // Delete data entry (and all children if folder)
-  async delete(id, userId = null) {
-    const item = await this.getById(id, userId);
-    if (!item) {
-      throw new Error('Item not found');
-    }
-
-    // If it's a folder, delete all descendants first
-    if (item.type === 'folder') {
-      await this.deleteDescendants(id, userId);
-    }
-
-    const sql = `DELETE FROM datahub_data WHERE id = ? ${userId ? 'AND user_id = ?' : ''}`;
-    const params = userId ? [id, userId] : [id];
-    const result = await query(sql, params);
-    
-    if (result.affectedRows === 0) {
-      throw new Error('Item not found or unauthorized');
-    }
-
-    return true;
-  },
-
-  // Delete all descendants of a folder
-  async deleteDescendants(parentId, userId = null) {
-    const sql = `
-      DELETE FROM datahub_data 
-      WHERE id IN (
-        WITH RECURSIVE descendants AS (
-          SELECT id FROM datahub_data 
-          WHERE parent_id = ? ${userId ? 'AND user_id = ?' : ''}
-          UNION ALL
-          SELECT d.id FROM datahub_data d
-          INNER JOIN descendants desc ON d.parent_id = desc.id
-          ${userId ? 'WHERE d.user_id = ?' : ''}
-        )
-        SELECT id FROM descendants
-      )
-    `;
-    const params = userId ? [parentId, userId, userId] : [parentId];
-    await query(sql, params);
-  },
-
   // Get children of a folder
   async getChildren(parentId, userId = null) {
     const sql = `
@@ -347,9 +291,9 @@ export const DataHubModel = {
     
     return children.map(child => ({
       ...child,
-      config: this.safeParse(child.config || '{}'),
-      tags: this.safeParse(child.tags || '[]'),
-      requiresApiKey: this.safeParse(child.config || '{}').ap1 === 'enable',
+      config: child.config || {},  // Keep config as raw data
+      tags: child.tags || [],      // Keep tags as raw data
+      requiresApiKey: child.config && child.config.ap1 === 'enable',
       isPublic: child.is_public,
       syncUrl: child.sync_url,
       lastSynced: child.last_synced
