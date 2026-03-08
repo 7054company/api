@@ -21,12 +21,19 @@ import authxConfigureRoutes from './routes/authx/configure.js';
 import authxUserRoutes from './routes/authx/user.js';
 import marketplaceRoutes from './routes/universex/marketplace/index.js';
 
+//import datahubRoutes from './routes/datahub/new.js';
+//import datahubBucketRoutes from './routes/datahub/b.js';
+//import datahubPublicRoutes from './routes/datahub/public.js';
+//import datahubDataRoutes from './routes/datahub/data.js';
+
+
 import datahubRoutes from './routes/datahub/new.js';
 import datahubBucketRoutes from './routes/datahub/b.js';
 import datahubPublicRoutes from './routes/datahub/public.js';
 import datahubDataRoutes from './routes/datahub/data.js';
 
-import d from './routes/news/index.js';
+
+//import d from './routes/news/index.js';
 
 
 
