@@ -5,6 +5,20 @@ import { authenticateToken } from '../../auth.js';
 
 const router = express.Router();
 
+// Add CORS headers for all routes
+router.use((req, res, next) => {
+  res.header('Content-Type', 'application/json');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
 // Create new data item - POST /api/d/new
 router.post('/new', authenticateToken, async (req, res) => {
   try {
@@ -76,13 +90,13 @@ router.get('/list', authenticateToken, async (req, res) => {
 
     const items = await query(sql, params);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: items
     });
   } catch (error) {
     console.error('Error fetching items:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch items',
       error: error.message
@@ -104,7 +118,7 @@ router.get('/files', authenticateToken, async (req, res) => {
     
     const files = await query(sql, [userId]);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       files: files.map(file => ({
         id: file.id,
@@ -118,7 +132,7 @@ router.get('/files', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching files:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch files',
       error: error.message
@@ -147,13 +161,13 @@ router.get('/v/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: item
     });
   } catch (error) {
     console.error('Error fetching item:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch item',
       error: error.message
