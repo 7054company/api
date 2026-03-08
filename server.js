@@ -21,13 +21,6 @@ import authxConfigureRoutes from './routes/authx/configure.js';
 import authxUserRoutes from './routes/authx/user.js';
 import marketplaceRoutes from './routes/universex/marketplace/index.js';
 
-//import datahubRoutes from './routes/datahub/new.js';
-//import datahubBucketRoutes from './routes/datahub/b.js';
-//import datahubPublicRoutes from './routes/datahub/public.js';
-//import datahubDataRoutes from './routes/datahub/data.js';
-
-
-//import datahubMainRoutes from './routes/datahub/datahub.js';
 
 import d from './routes/news/index.js';
 import datahubRoutes from './routes/datahub/datahub.js';
@@ -72,14 +65,7 @@ app.use('/api/authx/:appId/user', authxUserRoutes); // This route handles all us
 // UniverseX Routes
 app.use('/api/universex/marketplace', marketplaceRoutes);
 
-// datahub 
-//app.use('/api/d', datahubRoutes);
-//app.use('/api/d', datahubBucketRoutes);
-//app.use('/api/d/public', datahubPublicRoutes)
-//app.use('/api/d/', datahubDataRoutes);
 
-// DataHub Routes
-//app.use('/api/d/*', datahubMainRoutes);
 
 // DataHub Routes
 app.use('/api/d', datahubRoutes);
