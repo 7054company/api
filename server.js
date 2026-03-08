@@ -33,7 +33,7 @@ import datahubPublicRoutes from './routes/datahub/public.js';
 import datahubDataRoutes from './routes/datahub/data.js';
 
 
-//import d from './routes/news/index.js';
+import d from './routes/news/index.js';
 
 
 
