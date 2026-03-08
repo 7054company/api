@@ -79,7 +79,7 @@ app.use('/api/universex/marketplace', marketplaceRoutes);
 //app.use('/api/d/', datahubDataRoutes);
 
 // DataHub Routes
-app.use('/api/d', datahubMainRoutes);
+app.use('/api/d/*', datahubMainRoutes);
 
 
 
