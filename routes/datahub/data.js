@@ -11,13 +11,8 @@ router.get('/data', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     let items;
-    if (bucketId) {
-      // Get items for specific bucket (root level items for now)
-      items = await DataHubModel.getRootItems(userId);
-    } else {
-      // Get all root items for user
-      items = await DataHubModel.getRootItems(userId);
-    }
+    // Get items for specific bucket or all items if no bucket specified
+    items = await DataHubModel.getRootItems(userId, bucketId);
 
     res.json({
       success: true,
@@ -47,6 +42,7 @@ router.post('/data', authenticateToken, async (req, res) => {
 
     const dataItem = await DataHubModel.create({
       userId: req.user.id,
+      bucketId,
       name,
       content: content || '',
       type,
@@ -124,6 +120,30 @@ router.put('/data/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Failed to update data item',
+      error: error.message 
+    });
+  }
+});
+
+// Toggle public/private status
+router.post('/data/:id/toggle-public', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isPublic } = req.body;
+    const userId = req.user.id;
+
+    const result = await DataHubModel.togglePublicStatus(id, isPublic, userId);
+
+    res.json({
+      success: true,
+      message: `Data item ${isPublic ? 'made public' : 'made private'} successfully`,
+      isPublic: result.isPublic
+    });
+  } catch (error) {
+    console.error('Error toggling public status:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to toggle public status',
       error: error.message 
     });
   }
