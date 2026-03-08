@@ -28,7 +28,6 @@ import marketplaceRoutes from './routes/universex/marketplace/index.js';
 
 
 import datahubMainRoutes from './routes/datahub/datahub.js';
-import datahubSimpleRoutes from './routes/datahub/simple.js';
 
 import d from './routes/news/index.js';
 
@@ -81,7 +80,7 @@ app.use('/api/universex/marketplace', marketplaceRoutes);
 
 // DataHub Routes
 app.use('/api/d', datahubMainRoutes);
-app.use('/api/d', datahubSimpleRoutes);
+
 
 
 //f
