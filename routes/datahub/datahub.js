@@ -8,7 +8,7 @@ const router = express.Router();
 // Create new data item - POST /api/d/new
 router.post('/new', authenticateToken, async (req, res) => {
   try {
-    const { name, content = '', type = 'file', parentId = null, isPublic = false } = req.body;
+    const { name, content = '', type = 'file', parentId = null, isPublic = false, parent_id } = req.body;
     
     if (!name) {
       return res.status(400).json({ 
@@ -19,16 +19,17 @@ router.post('/new', authenticateToken, async (req, res) => {
 
     const id = uuidv4();
     const userId = req.user.id;
+    const finalParentId = parentId || parent_id || null;
 
     const sql = `
       INSERT INTO datahub_data (
-        id, user_id, parent_id, name, type, content, is_public, 
+        id, user_id, parent_id, name, type, content, is_public,
         file_size, config, tags, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}', '[]', NOW(), NOW())
     `;
     
     const fileSize = content ? content.length : 0;
-    await query(sql, [id, userId, parentId, name, type, content, isPublic, fileSize]);
+    await query(sql, [id, userId, finalParentId, name, type, content, isPublic, fileSize]);
 
     const newItem = await query(
       'SELECT * FROM datahub_data WHERE id = ?', 
@@ -54,16 +55,17 @@ router.post('/new', authenticateToken, async (req, res) => {
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { parentId = null, type } = req.query;
+    const { parentId = null, parent_id, type } = req.query;
+    const finalParentId = parentId || parent_id || null;
 
     let sql = `
       SELECT id, name, type, file_size, is_public, created_at, updated_at, parent_id
       FROM datahub_data 
-      WHERE user_id = ? AND parent_id ${parentId ? '= ?' : 'IS NULL'}
+      WHERE user_id = ? AND parent_id ${finalParentId ? '= ?' : 'IS NULL'}
     `;
     
     const params = [userId];
-    if (parentId) params.push(parentId);
+    if (finalParentId) params.push(finalParentId);
 
     if (type) {
       sql += ' AND type = ?';
@@ -83,6 +85,42 @@ router.get('/list', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch items',
+      error: error.message
+    });
+  }
+});
+
+// List user's files - GET /api/d/files
+router.get('/files', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const sql = `
+      SELECT id, name, file_size, is_public, created_at, updated_at
+      FROM datahub_data
+      WHERE user_id = ? AND type = 'file'
+      ORDER BY updated_at DESC
+    `;
+    
+    const files = await query(sql, [userId]);
+
+    res.json({
+      success: true,
+      files: files.map(file => ({
+        id: file.id,
+        name: file.name,
+        size: file.file_size,
+        isPublic: file.is_public,
+        createdAt: file.created_at,
+        updatedAt: file.updated_at,
+        publicUrl: file.is_public ? `/api/d/p/${file.id}` : null
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching files:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch files',
       error: error.message
     });
   }
@@ -123,41 +161,74 @@ router.get('/v/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// View public file content (no auth required) - GET /api/d/p/:id
+// View public file content (raw) - GET /api/d/p/:id
 router.get('/p/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
     const sql = `
-      SELECT id, name, content, type, file_size, created_at, updated_at
+      SELECT name, content, mime_type, file_size, updated_at
       FROM datahub_data
-      WHERE id = ? AND is_public = TRUE
+      WHERE id = ? AND is_public = TRUE AND type = 'file'
     `;
     
-    const [item] = await query(sql, [id]);
+    const [file] = await query(sql, [id]);
     
-    if (!item) {
+    if (!file) {
+      return res.status(404).send('File not found or not public');
+    }
+
+    // Set appropriate headers
+    if (file.mime_type) {
+      res.set('Content-Type', file.mime_type);
+    } else {
+      res.set('Content-Type', 'text/plain');
+    }
+    
+    if (file.file_size) {
+      res.set('Content-Length', file.file_size.toString());
+    }
+    
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Last-Modified', new Date(file.updated_at).toUTCString());
+    
+    // Return raw content
+    res.send(file.content || '');
+  } catch (error) {
+    console.error('Error fetching file:', error);
+    res.status(500).send('Internal server error');
+  }
+});
+
+// Get public file content in JSON form - GET /api/d/p/:id/json
+router.get('/p/:id/json', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const sql = `
+      SELECT id, name, content, mime_type, file_size, updated_at, created_at
+      FROM datahub_data
+      WHERE id = ? AND is_public = TRUE AND type = 'file'
+    `;
+    
+    const [file] = await query(sql, [id]);
+    
+    if (!file) {
       return res.status(404).json({
         success: false,
-        message: 'Public item not found'
+        message: 'File not found or not public'
       });
     }
 
-    // For file content, return raw content if it's a text file
-    if (item.type === 'file' && item.content) {
-      res.set('Content-Type', 'text/plain');
-      res.send(item.content);
-    } else {
-      res.json({
-        success: true,
-        data: item
-      });
-    }
+    res.json({
+      success: true,
+      data: file
+    });
   } catch (error) {
-    console.error('Error fetching public item:', error);
+    console.error('Error fetching file:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch public item',
+      message: 'Internal server error',
       error: error.message
     });
   }
@@ -244,6 +315,75 @@ router.put('/update/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Update file content and name (alternative endpoint) - PUT /api/d/p/:id
+router.put('/p/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, content } = req.body;
+    const userId = req.user.id;
+
+    // Check if file exists and belongs to user
+    const checkSql = `
+      SELECT id FROM datahub_data
+      WHERE id = ? AND user_id = ? AND type = 'file'
+    `;
+    
+    const [existingFile] = await query(checkSql, [id, userId]);
+    
+    if (!existingFile) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found or access denied'
+      });
+    }
+
+    const updates = [];
+    const values = [];
+
+    if (name !== undefined) {
+      updates.push('name = ?');
+      values.push(name);
+    }
+
+    if (content !== undefined) {
+      updates.push('content = ?');
+      updates.push('file_size = ?');
+      values.push(content);
+      values.push(content.length);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update'
+      });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(id, userId);
+
+    const sql = `
+      UPDATE datahub_data 
+      SET ${updates.join(', ')}
+      WHERE id = ? AND user_id = ?
+    `;
+
+    await query(sql, values);
+
+    res.json({
+      success: true,
+      message: 'File updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating file:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update file',
+      error: error.message
+    });
+  }
+});
+
 // Delete data item - DELETE /api/d/delete/:id
 router.delete('/delete/:id', authenticateToken, async (req, res) => {
   try {
@@ -273,6 +413,40 @@ router.delete('/delete/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete item',
+      error: error.message
+    });
+  }
+});
+
+// Delete file (alternative endpoint) - DELETE /api/d/p/:id
+router.delete('/p/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const sql = `
+      DELETE FROM datahub_data 
+      WHERE id = ? AND user_id = ? AND type = 'file'
+    `;
+    
+    const result = await query(sql, [id, userId]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found or access denied'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'File deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete file',
       error: error.message
     });
   }
