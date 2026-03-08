@@ -27,10 +27,10 @@ import marketplaceRoutes from './routes/universex/marketplace/index.js';
 //import datahubDataRoutes from './routes/datahub/data.js';
 
 
-import datahubMainRoutes from './routes/datahub/datahub.js';
+//import datahubMainRoutes from './routes/datahub/datahub.js';
 
 import d from './routes/news/index.js';
-
+import datahubRoutes from './routes/datahub/datahub.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -79,9 +79,10 @@ app.use('/api/universex/marketplace', marketplaceRoutes);
 //app.use('/api/d/', datahubDataRoutes);
 
 // DataHub Routes
-app.use('/api/d/*', datahubMainRoutes);
+//app.use('/api/d/*', datahubMainRoutes);
 
-
+// DataHub Routes
+app.use('/api/d', datahubRoutes);
 
 //f
 app.use('/api/f', d);
