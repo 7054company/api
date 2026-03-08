@@ -1,300 +1,302 @@
-import express from 'express';
+import { query } from '../../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
-import { DataHubModel } from '../../models/d/new.model.js';
-import { authenticateToken } from '../../auth.js';
+import crypto from 'crypto';
+import https from 'https';
+import http from 'http';
 
-const router = express.Router();
+export const DataHubModel = {
+  // Generate random API key
+  generateApiKey() {
+    return crypto.randomBytes(32).toString('hex');
+  },
 
-// Get all data items for a bucket or user
-router.get('/data', authenticateToken, async (req, res) => {
-  try {
-    const { bucketId } = req.query;
-    const userId = req.user.id;
+  // Create new data entry (file or folder)
+  async create(data = {}) {
+    const id = uuidv4();
+    const apiKey = this.generateApiKey();
 
-    let items;
-    if (bucketId) {
-      // Get items for specific bucket (root level items for now)
-      items = await DataHubModel.getRootItems(userId);
-    } else {
-      // Get all root items for user
-      items = await DataHubModel.getRootItems(userId);
+    const config = {
+      apikey: apiKey,
+      ap1: data.requiresAuth ? 'enable' : 'disable',
+      type: data.type || 'file',
+      permissions: data.permissions || 'read-write',
+      syncUrl: data.syncUrl || null,
+      autoSync: data.autoSync || false
+    };
+
+    // Safely handle tags (ensure tags is an array)
+    let tags = Array.isArray(data.tags) ? data.tags : (data.tags ? [data.tags] : []);
+
+    // Handle folder structure
+    const parentId = data.parentId || null;
+    const name = data.name || `Untitled ${data.type || 'file'}`;
+    let content = data.content || (data.type === 'folder' ? null : '');
+
+    // If syncUrl is provided, fetch content from URL
+    if (data.syncUrl && data.type === 'file') {
+      try {
+        content = await this.fetchUrlContent(data.syncUrl);
+      } catch (error) {
+        console.error('Failed to sync from URL:', error);
+        content = '';  // Default empty content if sync fails
+      }
     }
 
-    res.json({
-      success: true,
-      items
-    });
-  } catch (error) {
-    console.error('Error fetching data items:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to fetch data items',
-      error: error.message 
-    });
-  }
-});
-
-// Create new data item
-router.post('/data', authenticateToken, async (req, res) => {
-  try {
-    const { name, content, type = 'file', bucketId, parentId, tags, isPublic = false } = req.body;
+    const sql = `
+      INSERT INTO datahub_data (
+        id, user_id, parent_id, name, type, content, file_size, mime_type, is_public, config, tags, sync_url, last_synced, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `;
     
-    if (!name) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Name is required' 
-      });
-    }
-
-    const dataItem = await DataHubModel.create({
-      userId: req.user.id,
+    await query(sql, [
+      id, 
+      data.userId || 0,
+      parentId,
       name,
-      content: content || '',
-      type,
-      parentId: parentId || null,
-      tags: tags || [],
-      isPublic
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Data item created successfully',
-      item: dataItem
-    });
-  } catch (error) {
-    console.error('Error creating data item:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to create data item',
-      error: error.message 
-    });
-  }
-});
-
-// Get single data item
-router.get('/data/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const item = await DataHubModel.getById(id, userId);
+      data.type || 'file',
+      content,
+      content ? content.length : 0,
+      data.mimeType || null,
+      data.isPublic || false,
+      JSON.stringify(config),  // Only stringify when saving to DB
+      JSON.stringify(tags),    // Only stringify when saving to DB
+      data.syncUrl || null,
+      data.syncUrl ? new Date() : null
+    ]);
     
-    if (!item) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Data item not found' 
+    return { 
+      id, 
+      apiKey, 
+      name, 
+      type: data.type || 'file',
+      isPublic: data.isPublic || false
+    };
+  },
+
+  // Fetch content from URL
+  async fetchUrlContent(url) {
+    return new Promise((resolve, reject) => {
+      const client = url.startsWith('https:') ? https : http;
+      
+      client.get(url, (response) => {
+        let data = '';
+        
+        response.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        response.on('end', () => {
+          if (response.statusCode === 200) {
+            resolve(data);
+          } else {
+            reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+          }
+        });
+      }).on('error', (error) => {
+        reject(error);
       });
+    });
+  },
+
+  // Sync file content from URL
+  async syncFromUrl(id, userId = null) {
+    const item = await this.getById(id, userId);
+    
+    if (!item || item.type !== 'file' || !item.config.syncUrl) {
+      throw new Error('Item not found or not syncable');
     }
 
-    res.json({
-      success: true,
-      item
+    try {
+      const content = await this.fetchUrlContent(item.config.syncUrl);
+      
+      await this.update(id, {
+        content,
+        last_synced: new Date()
+      }, userId);
+
+      return { success: true, content };
+    } catch (error) {
+      throw new Error(`Sync failed: ${error.message}`);
+    }
+  },
+
+  // Create folder
+  async createFolder(data = {}) {
+    return this.create({
+      ...data,
+      type: 'folder',
+      content: null
     });
-  } catch (error) {
-    console.error('Error fetching data item:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to fetch data item',
-      error: error.message 
+  },
+
+  // Create file
+  async createFile(data = {}) {
+    return this.create({
+      ...data,
+      type: 'file',
+      content: data.content || ''
     });
-  }
-});
+  },
 
-// Update data item
-router.put('/data/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, content, tags, isPublic } = req.body;
-    const userId = req.user.id;
+  // Get data entry by ID with children (for folders)
+  async getById(id, userId = null) {
+    const sql = `
+      SELECT 
+        id,
+        user_id,
+        parent_id,
+        name,
+        type,
+        content,
+        file_size,
+        mime_type,
+        is_public,
+        config,
+        tags,
+        sync_url,
+        last_synced,
+        logs,
+        created_at,
+        updated_at
+      FROM datahub_data
+      WHERE id = ? ${userId ? 'AND user_id = ?' : ''}
+    `;
+    
+    const params = userId ? [id, userId] : [id];
+    const [result] = await query(sql, params);
+    
+    if (!result) return null;
+    
+    // Leave config and tags as raw data (don't parse them)
+    result.requiresApiKey = result.config && result.config.ap1 === 'enable';
+    result.isPublic = result.is_public;
+    result.syncUrl = result.sync_url;
+    result.lastSynced = result.last_synced;
+    result.tags = result.tags || [];  // Keep as raw tags (not parsed)
+    result.config = result.config || {};  // Keep config as raw data
+    
+    // If it's a folder, get children
+    if (result.type === 'folder') {
+      result.children = await this.getChildren(id, userId);
+    }
+    
+    return result;
+  },
 
-    const updates = {};
-    if (name !== undefined) updates.name = name;
-    if (content !== undefined) updates.content = content;
-    if (tags !== undefined) updates.tags = tags;
-    if (isPublic !== undefined) updates.is_public = isPublic;
+  // Get root items for a user
+  async getRootItems(userId) {
+    const sql = `
+      SELECT 
+        id,
+        user_id,
+        parent_id,
+        name,
+        type,
+        content,
+        file_size,
+        mime_type,
+        is_public,
+        config,
+        tags,
+        sync_url,
+        last_synced,
+        created_at,
+        updated_at
+      FROM datahub_data
+      WHERE user_id = ? AND parent_id IS NULL
+      ORDER BY type DESC, name ASC
+    `;
+    
+    const items = await query(sql, [userId]);
+    
+    return items.map(item => ({
+      ...item,
+      config: item.config || {},  // Keep raw config
+      tags: item.tags || [],      // Keep raw tags
+      requiresApiKey: item.config && item.config.ap1 === 'enable',
+      isPublic: item.is_public,
+      syncUrl: item.sync_url,
+      lastSynced: item.last_synced
+    }));
+  },
 
-    const updatedItem = await DataHubModel.update(id, updates, userId);
+  // Update data entry
+  async update(id, updates, userId = null) {
+    const allowedFields = ['name', 'content', 'file_size', 'mime_type', 'is_public', 'config', 'logs', 'tags', 'parent_id', 'sync_url', 'last_synced'];
+    const updateFields = [];
+    const values = [];
 
-    res.json({
-      success: true,
-      message: 'Data item updated successfully',
-      item: updatedItem
-    });
-  } catch (error) {
-    console.error('Error updating data item:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to update data item',
-      error: error.message 
-    });
-  }
-});
-
-// Delete data item
-router.delete('/data/:id', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    await DataHubModel.delete(id, userId);
-
-    res.json({
-      success: true,
-      message: 'Data item deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting data item:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to delete data item',
-      error: error.message 
-    });
-  }
-});
-
-// Search data items
-router.get('/search', authenticateToken, async (req, res) => {
-  try {
-    const { q: searchTerm, type } = req.query;
-    const userId = req.user.id;
-
-    if (!searchTerm) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Search term is required' 
-      });
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = ?`);
+        if (['config', 'tags', 'logs'].includes(key)) {
+          values.push(JSON.stringify(value));  // Only stringify when saving to DB
+        } else if (key === 'last_synced' && value instanceof Date) {
+          values.push(value);
+        } else {
+          values.push(value);
+        }
+      }
     }
 
-    const results = await DataHubModel.search(searchTerm, userId, type);
+    if (updateFields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
 
-    res.json({
-      success: true,
-      results,
-      count: results.length
-    });
-  } catch (error) {
-    console.error('Error searching data items:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to search data items',
-      error: error.message 
-    });
+    updateFields.push('updated_at = NOW()');
+    values.push(id);
+    if (userId) values.push(userId);
+
+    const sql = `
+      UPDATE datahub_data 
+      SET ${updateFields.join(', ')}
+      WHERE id = ? ${userId ? 'AND user_id = ?' : ''}
+    `;
+
+    const result = await query(sql, values);
+    
+    if (result.affectedRows === 0) {
+      throw new Error('Item not found or unauthorized');
+    }
+
+    return this.getById(id, userId);
+  },
+
+  // Get children of a folder
+  async getChildren(parentId, userId = null) {
+    const sql = `
+      SELECT 
+        id,
+        user_id,
+        parent_id,
+        name,
+        type,
+        content,
+        file_size,
+        mime_type,
+        is_public,
+        config,
+        tags,
+        sync_url,
+        last_synced,
+        created_at,
+        updated_at
+      FROM datahub_data
+      WHERE parent_id = ? ${userId ? 'AND user_id = ?' : ''}
+      ORDER BY type DESC, name ASC
+    `;
+    
+    const params = userId ? [parentId, userId] : [parentId];
+    const children = await query(sql, params);
+    
+    return children.map(child => ({
+      ...child,
+      config: child.config || {},  // Keep config as raw data
+      tags: child.tags || [],      // Keep tags as raw data
+      requiresApiKey: child.config && child.config.ap1 === 'enable',
+      isPublic: child.is_public,
+      syncUrl: child.sync_url,
+      lastSynced: child.last_synced
+    }));
   }
-});
-
-// Get data statistics
-router.get('/stats', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const stats = await DataHubModel.getStats(userId);
-
-    res.json({
-      success: true,
-      stats
-    });
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to fetch statistics',
-      error: error.message 
-    });
-  }
-});
-
-// Move data item
-router.post('/data/:id/move', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { parentId } = req.body;
-    const userId = req.user.id;
-
-    const movedItem = await DataHubModel.move(id, parentId, userId);
-
-    res.json({
-      success: true,
-      message: 'Data item moved successfully',
-      item: movedItem
-    });
-  } catch (error) {
-    console.error('Error moving data item:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to move data item',
-      error: error.message 
-    });
-  }
-});
-
-// Copy data item
-router.post('/data/:id/copy', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { parentId, newName } = req.body;
-    const userId = req.user.id;
-
-    const copiedItem = await DataHubModel.copy(id, parentId, newName, userId);
-
-    res.json({
-      success: true,
-      message: 'Data item copied successfully',
-      item: copiedItem
-    });
-  } catch (error) {
-    console.error('Error copying data item:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to copy data item',
-      error: error.message 
-    });
-  }
-});
-
-// Toggle public access
-router.post('/data/:id/toggle-public', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { isPublic } = req.body;
-    const userId = req.user.id;
-
-    const result = await DataHubModel.togglePublic(id, isPublic, userId);
-
-    res.json({
-      success: true,
-      message: `Data item ${isPublic ? 'made public' : 'made private'} successfully`,
-      isPublic: result.isPublic
-    });
-  } catch (error) {
-    console.error('Error toggling public access:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to toggle public access',
-      error: error.message 
-    });
-  }
-});
-
-// Sync from URL
-router.post('/data/:id/sync', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const result = await DataHubModel.syncFromUrl(id, userId);
-
-    res.json({
-      success: true,
-      message: 'Data synced successfully',
-      content: result.content
-    });
-  } catch (error) {
-    console.error('Error syncing data:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to sync data',
-      error: error.message 
-    });
-  }
-});
-
-export default router;
+};
